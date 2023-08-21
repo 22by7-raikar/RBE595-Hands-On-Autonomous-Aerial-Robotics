@@ -37,6 +37,7 @@ class state_machine:
         num_wp = 0      #Number of waypoints covered
         threshold = 0   #Acceptable distance between the robot and actual april tag
         at_WP = False   #Flag for whether at waypoint or not
+        landed = False
 
         while num_wp < len(self.waypoints):
             ED = math.dist(currpos, self.waypoints[num_wp])
@@ -46,10 +47,16 @@ class state_machine:
                 detector = apriltag.Detector()
                 result = detector.detect(curr_img)
                 t_num = result[0].tag_id
-                if t_num == 4:
-                    xyz_desired = [currpos[0], currpos[1], 0]   #Perform Landing
+                                
+                if landed:
+                    xyz_desired = [currpos[0], currpos[1], 1.5]
+                    landed = False
                     return xyz_desired
                 
+                if t_num == 4:
+                    xyz_desired = [currpos[0], currpos[1], 0.1]   #Perform Landing
+                    landed = True
+                    return xyz_desired
                 else:
                     xyz_desired = self.waypoints[num_wp]
                 num_wp = num_wp+1
