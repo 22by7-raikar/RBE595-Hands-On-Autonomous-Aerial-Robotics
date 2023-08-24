@@ -10,7 +10,7 @@ class state_machine:
     def __init__(self):
         # User code executes every dt time in seconds
         self.dt = 0.050
-
+        self.i = 0
         # location of each tag
         self.waypoints = [
             [-1.7,      0.8,    1.5],
@@ -33,19 +33,22 @@ class state_machine:
         # Write your logic here. Do not edit anything else apart from paths.
         if time < 1:
             xyz_desired = self.currentWP
+        
+
+        if landed and (time - curr_time) < 5:
             return xyz_desired
         
         num_waypts = len(self.waypoints)
         # atwWP = 0
         landed = False
-        i = 0
-        curr_waypt = self.waypoints[i]
+        curr_waypt = self.waypoints[self.i]
+
         cwp_x, cwp_y, cwp_z, = curr_waypt[0], curr_waypt[1], curr_waypt[2]
         cp_x, cp_y, cp_z, = currpos[0], currpos[1], currpos[2]
 
         euc_dis = math.sqrt(((cp_x - cwp_x)**2) + ((cp_y - cwp_y)**2) + ((cp_z - cwp_z)**2))
         threshold = 1.4
-        if euc_dis < threshold:
+        if euc_dis < threshold: #WAYPOINT
             if landed:
                 landed = False
                 return [cwp_x, cwp_y, 1.5]
@@ -59,10 +62,10 @@ class state_machine:
             
             if t_num == 4:
                 landed = True
-                curr_time = time
                 xyz_desired = [cwp_x, cwp_y, 0.1]
+                curr_time = time
             
-            i = i+1
+            self.i = self.i+1
         
         return xyz_desired
 
