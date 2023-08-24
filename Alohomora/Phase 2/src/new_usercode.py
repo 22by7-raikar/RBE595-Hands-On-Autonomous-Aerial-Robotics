@@ -11,6 +11,8 @@ class state_machine:
         # User code executes every dt time in seconds
         self.dt = 0.050
         self.i = 0
+        self.landed = False
+        self.t = 0 
         # location of each tag
         self.waypoints = [
             [-1.7,      0.8,    1.5],
@@ -31,43 +33,84 @@ class state_machine:
         """
 
         # Write your logic here. Do not edit anything else apart from paths.
-        if time < 1:
-            xyz_desired = self.currentWP
+       
+        xyz_desired = self.currentWP
+        curr_waypt = self.currentWP
+        if self.i < 3:
+            curr_waypt = self.waypoints[self.i]
         
-
-        if landed and (time - curr_time) < 5:
-            return xyz_desired
-        
-        num_waypts = len(self.waypoints)
-        # atwWP = 0
-        landed = False
-        curr_waypt = self.waypoints[self.i]
-
         cwp_x, cwp_y, cwp_z, = curr_waypt[0], curr_waypt[1], curr_waypt[2]
         cp_x, cp_y, cp_z, = currpos[0], currpos[1], currpos[2]
-
         euc_dis = math.sqrt(((cp_x - cwp_x)**2) + ((cp_y - cwp_y)**2) + ((cp_z - cwp_z)**2))
-        threshold = 1.4
-        if euc_dis < threshold: #WAYPOINT
-            if landed:
-                landed = False
-                return [cwp_x, cwp_y, 1.5]
-            
-            #Hasn't Landed yet OR risen from landing
-            curr_img = self.fetchLatestImage                        #Get image 
+
+        if euc_dis<0.1 and self.landed == False and self.i<3:
+            curr_img = self.fetchLatestImage()                        #Get image 
             gray_img = cv2.cvtColor(curr_img, cv2.COLOR_BGR2GRAY)   #convert to grayscale
             detector = apriltag.Detector()  
             result = detector.detect(gray_img)
-            t_num = result[0].tag_id
-            
-            if t_num == 4:
-                landed = True
-                xyz_desired = [cwp_x, cwp_y, 0.1]
-                curr_time = time
-            
-            self.i = self.i+1
+            if result[0].tag_id == 4: 
+                self.landed = True 
+                self.t = time
+            else:
+                if self.i<3: 
+                    self.i = self.i+1
+
+
+
+        else:
+            xyz_desired = curr_waypt
+
+        if self.landed: 
+            if time< self.t+5:
+                xyz_desired = [cp_x,cp_y,0.5]
+            if time > self.t+5:
+                self.landed = False
+                xyz_desired = [cp_x,cp_y,1.5]
+                self.i = self.i+1
+
         
+
+        print(self.i)
         return xyz_desired
+
+
+
+
+        
+
+        # if self.landed and (time - curr_time) < 5:
+        #     return xyz_desired
+        
+        # num_waypts = len(self.waypoints)
+        # # atwWP = 0
+        # curr_waypt = self.waypoints[self.i]
+        # xyz_desired = curr_waypt 
+        # cwp_x, cwp_y, cwp_z, = curr_waypt[0], curr_waypt[1], curr_waypt[2]
+        # cp_x, cp_y, cp_z, = currpos[0], currpos[1], currpos[2]
+
+        # euc_dis = math.sqrt(((cp_x - cwp_x)**2) + ((cp_y - cwp_y)**2) + ((cp_z - cwp_z)**2))
+        # threshold = 1.4
+        # if euc_dis < threshold: #WAYPOINT
+        #     if self.landed:
+        #         self.landed = False
+        #         return [cwp_x, cwp_y, 1.5]
+            
+        #     #Hasn't Landed yet OR risen from landing
+        #     curr_img = self.fetchLatestImage()                        #Get image 
+        #     gray_img = cv2.cvtColor(curr_img, cv2.COLOR_BGR2GRAY)   #convert to grayscale
+        #     detector = apriltag.Detector()  
+        #     result = detector.detect(gray_img)
+        #     print(result[0].tag_id)
+            
+            
+        #     if t_num == 4:
+        #         self.landed = True
+        #         xyz_desired = [cwp_x, cwp_y, 0.1]
+        #         curr_time = time
+            
+        #     self.i = self.i+1
+        
+        # return xyz_desired
 
     def fetchLatestImage(self):
         # Fetch image - renders the camera, saves the rendered image to a file and reads from it. 
