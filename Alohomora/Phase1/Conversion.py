@@ -4,10 +4,10 @@ import math
 import numpy as np
 
 def acc_conv(acc, b, s):
-    return float((acc+b)/s)
+    return (float(acc+b)/float(s))
 
 def ang_conv(angle, b):
-    w = (3300/1023) * (math.pi/180) * 0.3 * (angle - b)
+    return (3300/1023) * (math.pi/180) * 0.3 * (angle - b)
 
 def convert(imu_vals, imu_params):
     sx, sy, sz = imu_params[0]          # = [-0.00941012, -0.00944606,  0.00893549]
@@ -63,11 +63,11 @@ def reading():
     #['__header__', '__version__', '__globals__', 'rots', 'ts'])
 
     ax,ay,az,wx,wy,wz = convert(imu_vals, imu_params)
-
     return ax, ay, az, wx, wy, wz, gt, imu_time, gt_time
 
 if __name__ == "__main__":
     reading()
+
 
 
 
