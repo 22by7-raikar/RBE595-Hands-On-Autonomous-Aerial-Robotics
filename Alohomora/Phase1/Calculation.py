@@ -8,7 +8,21 @@ import matplotlib.pyplot as plt
 from Conversion import reading
 
 def complementary(gyro_acc, accl_acc):
-    pass
+    alpha = 0.3
+    orientations = []
+    for i in range(len(gyro_acc)):
+        # Assuming gyro_acc and accl_acc have the same length and are of the form [roll, pitch, yaw]
+        gyro_roll, gyro_pitch, gyro_yaw = gyro_acc[i]
+        accl_roll, accl_pitch, accl_yaw = accl_acc[i]
+
+        # Apply complementary filter equations
+        comp_roll = alpha * (gyro_roll) + (1 - alpha) * (accl_roll)
+        comp_pitch = alpha * (gyro_pitch) + (1 - alpha) * (accl_pitch)
+        comp_yaw = alpha * (gyro_yaw) + (1 - alpha) * (accl_yaw)
+
+        orientations.append([comp_roll, comp_pitch, comp_yaw])
+    return orientations
+
 
 def convert_to_rpy(vio):
     pitch = np.arcsin(vio[0, 2])
@@ -95,6 +109,7 @@ def plotting():
     # final = complementary(gyro_acc, accl_acc) #To be filled
     imu_time  = imu_time.transpose()
     gt_time  = gt_time.transpose()
+
     fig, axarr = plt.subplots(3, 1)
     axarr[0].plot(imu_time, g_rpys[0], label = 'gyro', color = 'red')
     axarr[0].plot(gt_time, v_rpys[0], label = 'vicon', color = 'blue')
