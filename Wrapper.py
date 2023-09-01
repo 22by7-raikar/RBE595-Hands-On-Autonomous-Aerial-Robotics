@@ -4,7 +4,7 @@ import os
 import math
 from math import pi,atan2, sqrt, sin, cos
 import numpy as np
-from rotplot import rotplot
+#from rotplot import rotplot
 import matplotlib.pyplot as plt
 
 
@@ -38,16 +38,43 @@ def convert_to_quat(euler):
         quat.append([qw, qx, qy, qz])
     return quat 
 
+# def quat_to_euler(q):
+#     w = q[0]
+#     x = q[1]
+#     y = q[2]
+#     z = q[3]
+#     yaw = math.atan2(2.0 * (w * y + x * z), 1.0 - 2.0 * (y * y + z * z))
+#     pitch = math.asin(2.0 * (w * z - x * y))
+#     roll = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (z * z + x * x))
+
+#     return [roll,pitch,yaw]
+
 def quat_to_euler(q):
     w = q[0]
     x = q[1]
     y = q[2]
     z = q[3]
-    yaw = math.atan2(2.0 * (w * y + x * z), 1.0 - 2.0 * (y * y + z * z))
-    pitch = math.asin(2.0 * (w * z - x * y))
-    roll = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (z * z + x * x))
 
-    return [roll,pitch,yaw]
+    # Calculate pitch (rotation around the x-axis)
+    sin_pitch = 2.0 * (w * y - z * x)
+    if abs(sin_pitch) >= 1:
+        pitch = math.pi / 2 if sin_pitch > 0 else -math.pi / 2
+    else:
+        pitch = math.asin(sin_pitch)
+
+    # Calculate yaw (rotation around the z-axis)
+    sin_yaw_cosp = 2.0 * (w * z + x * y)
+    cos_yaw_cosp = 1.0 - 2.0 * (y * y + z * z)
+    yaw = math.atan2(sin_yaw_cosp, cos_yaw_cosp)
+
+    # Calculate roll (rotation around the y-axis)
+    sin_roll = 2.0 * (w * x - y * z)
+    if abs(sin_roll) >= 1:
+        roll = math.pi / 2 if sin_roll > 0 else -math.pi / 2
+    else:
+        roll = math.asin(sin_roll)
+
+    return [roll, pitch, yaw]
 
 
 def rot_matrix(roll,pitch,yaw):
@@ -123,7 +150,7 @@ def quat_mult(x,y):
     return [a,b,c,d]
 
 #loading the Vicon data
-vicon_path = '/home/ankush/Desktop/YourDirectoryID_p1a/Data/Train/Vicon/viconRot1.mat'
+vicon_path = '/home/hasithab/Downloads/sbachimanchi_p0/Phase1/Data/Train/Vicon/viconRot6.mat'
 vx = io.loadmat(vicon_path)
 vvalst = vx['rots']
 vvals = vvalst.transpose()
@@ -143,12 +170,12 @@ for r in vvals:
 
 
 #loading the IMU data
-imu_path = '/home/ankush/Desktop/YourDirectoryID_p1a/Data/Train/IMU/imuRaw1.mat'
+imu_path = '/home/hasithab/Downloads/sbachimanchi_p0/Phase1/Data/Train/IMU/imuRaw6.mat'
 ix = io.loadmat(imu_path)
 i_vals = ix['vals']
 ivals = i_vals.transpose()
 its = ix['ts']
-para_path = '/home/ankush/Desktop/YourDirectoryID_p1a/IMUParams.mat'
+para_path = '/home/hasithab/Downloads/sbachimanchi_p0/Phase1/IMUParams.mat'
 px = io.loadmat(para_path)
 parax = px['IMUParams']
 #scale values 
@@ -337,30 +364,23 @@ axarr[0].plot(ts, g_roll, label = 'gyro', color = 'red')
 axarr[0].plot(vts, vicr, label = 'vicon', color = 'blue')
 axarr[0].plot(ts, accr, label = 'acc', color = 'green')
 axarr[0].plot(ts, cfroll, label = 'cf', color = 'purple')
-axarr[0].plot(ts, mroll, label = 'mf', color = 'pink')
-axarr[0].set_title('Time vs Roll')
-plt.legend()
+axarr[0].plot(ts, mroll, label = 'mf', color = 'orange')
+axarr[0].set_title('Time (sec) vs Roll (rad)')
+axarr[0].legend()
 axarr[1].plot(ts, g_pitch, label = 'gyro', color = 'red')
 axarr[1].plot(vts, vicp, label = 'vicon', color = 'blue')
 axarr[1].plot(ts, accp, label = 'acc', color = 'green')
 axarr[1].plot(ts, cfpitch, label = 'cf', color = 'purple')
-axarr[1].plot(ts, mpitch, label = 'mf', color = 'pink')
-axarr[1].set_title('Time vs Pitch')
-plt.legend()
+axarr[1].plot(ts, mpitch, label = 'mf', color = 'orange')
+axarr[1].set_title('Time (sec) vs Pitch (rad)')
+axarr[1].legend()
 axarr[2].plot(ts, g_yaw, label = 'gyro', color = 'red')
 axarr[2].plot(vts, vicy, label = 'vicon', color = 'blue')
 axarr[2].plot(ts, accp, label = 'acc', color = 'green')
 axarr[2].plot(ts, cfyaw, label = 'cf', color = 'purple')
-axarr[2].plot(ts, myaw, label = 'cf', color = 'pink')
-axarr[2].set_title('Time vs Yaw')
+axarr[2].plot(ts, myaw, label = 'mf', color = 'orange')
+axarr[2].set_title('Time (sec) vs Yaw (rad)')
+axarr[2].legend()
 plt.tight_layout()
-plt.legend()
+#plt.legend()
 plt.show()
-
-
-
-
-
-
-
-
