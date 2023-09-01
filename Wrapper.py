@@ -4,7 +4,7 @@ import os
 import math
 from math import pi,atan2, sqrt, sin, cos
 import numpy as np
-#from rotplot import rotplot
+from rotplot import rotplot
 import matplotlib.pyplot as plt
 
 
@@ -37,17 +37,6 @@ def convert_to_quat(euler):
 
         quat.append([qw, qx, qy, qz])
     return quat 
-
-# def quat_to_euler(q):
-#     w = q[0]
-#     x = q[1]
-#     y = q[2]
-#     z = q[3]
-#     yaw = math.atan2(2.0 * (w * y + x * z), 1.0 - 2.0 * (y * y + z * z))
-#     pitch = math.asin(2.0 * (w * z - x * y))
-#     roll = math.atan2(2.0 * (w * x + y * z), 1.0 - 2.0 * (z * z + x * x))
-
-#     return [roll,pitch,yaw]
 
 def quat_to_euler(q):
     w = q[0]
@@ -323,8 +312,6 @@ def half_qn(q):
 for i in range(len(ts) - 1):
 
     gqest = quat_mult(half_qn(quat_norm(qesti)), [0,gd[i][0],gd[i][1],gd[i][1]])
-    if (i == 1):
-        print(gqest)
     
     del_f2 = np.array([[2*(qesti[1]*qesti[3] - qesti[0]*qesti[2]) - ad[i][0]],
               [2*(qesti[0]*qesti[1] + qesti[2]*qesti[3]) - ad[i][1]],
@@ -356,8 +343,6 @@ for g in oest:
     mroll.append(g[0])
     mpitch.append(g[1])
     myaw.append(g[2])
-
-print("MROLL: ", len(mroll))
 
 fig, axarr = plt.subplots(3, 1)
 axarr[0].plot(ts, g_roll, label = 'gyro', color = 'red')
