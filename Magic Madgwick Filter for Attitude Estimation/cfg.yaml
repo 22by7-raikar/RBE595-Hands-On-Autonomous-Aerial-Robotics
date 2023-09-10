@@ -13,3 +13,4 @@ vicon:
 filter_weight:
   low_high: 0.2
   complementary: 0.6
+  madgwick_trust_factor: 0.6 

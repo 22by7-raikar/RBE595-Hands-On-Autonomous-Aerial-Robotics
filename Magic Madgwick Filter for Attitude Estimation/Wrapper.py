@@ -7,7 +7,7 @@ import numpy as np
 from rotplot import rotplot
 import matplotlib.pyplot as plt
 import yaml
-from helpers import conv2ER, rpy2rotmat, ang_conv, acc_conv
+from helpers import *
 
 curr_dir = os.path.dirname(os.path.abspath(__file__))
 with open(os.path.join(curr_dir, 'cfg.yaml')) as file:
@@ -21,13 +21,13 @@ def convert(imu_vals, imu_params):
     sx, sy, sz = imu_params[0]
     bax, bay, baz = imu_params[1]   
 
-    imu_vals = imu_vals.transpose()
+    imu_vals = imu_vals.T
 
     ax, ay, az = [], [], []
     wx, wy, wz = [], [], []
     calc_bias = 0
 
-    imu_vec, imu_acc, imu_gyro = [], [], []  
+    imu_acc, imu_gyro = [], []
 
     for row in imu_vals:
         ax = acc_conv(row[0],bax,sx)
@@ -45,9 +45,8 @@ def convert(imu_vals, imu_params):
         wy = ang_conv(row[5],bpy)
         imu_acc.append([ax, ay, az])
         imu_gyro.append([wx, wy, wz])
-        imu_vec.append([ax, ay, az, wx, wy, wz])
 
-    return imu_vec, imu_acc, imu_gyro
+    return imu_acc, imu_gyro
 
 
 def gyro(init_rot_mat, t, imu_g):
@@ -105,12 +104,12 @@ def complementary(rg, pg, yg, ra, pa, ya, af, ac):
     rpyc.append([rc[0], pc[0], yc[0]])
 
     for i in range(len(imu_timestamps)-1):  
-        # Low pass acc -> Stable initially, A-readings not good at higher values``
+        # Low pass acc -> Stable initially, A-reimu_aings not good at higher values``
         ralp = (1 - af) * ra[i+1] + af * ralp
         palp = (1 - af) * pa[i+1] + af * palp
         yalp = (1 - af) * ya[i+1] + af * yalp
 
-        #High pass gyro -> G-readings Stable later, faster speeds i.e, @ higher values
+        #High pass gyro -> G-reimu_aings Stable later, faster speeds i.e, @ higher values
         rghp = (1-af) * rg[i+1] + (1 - af) * (rg[i+1] - rghp)
         pghp = (1-af) * pg[i+1] + (1 - af) * (pg[i+1] - pghp)
         yghp = (1-af) * yg[i+1] + (1 - af) * (yg[i+1] - yghp)
@@ -138,6 +137,71 @@ def orientation_from_gt(gt):
     
     return rgt, pgt, ygt
 
+
+def gt2quatconv_norm(rpya, rpyg, imu_a):
+    
+    norm_imu_a, norm_aq, norm_gq = [], [], []
+
+    rpya2quat = conv2quat(rpya)
+    rpyg2quat = conv2quat(rpyg)
+    
+
+    for i in imu_a:
+        d = (i[0]**2 + i[1]**2 + i[2]**2)
+        norm_imu_a.append([i[0]/d, i[1]/d, i[2]/d])
+
+    for i in rpya2quat:
+        norm_aq.append(quat_norm(i))
+
+    for j in rpyg2quat:
+        norm_gq.append(quat_norm(j))
+
+    return norm_imu_a, norm_aq, norm_gq
+
+
+def madgwick(beta, imu_g):
+
+    rm, pm, ym, rpym = [], [], [], []
+    q_est = []
+    q_est.append(np.array([1,0,0,0]))
+    q_esti = q_est[0]
+
+    g = quat2euler(q_esti)
+    rpym.append(g)
+    rm.append(g[0])
+    pm.append(g[1])
+    ym.append(g[2])
+
+    for i in range(len(imu_time) - 1):
+        gq_est = quat_mult(half_qn(quat_norm(q_esti)), [0,imu_g[i][0],imu_g[i][1],imu_g[i][1]])
+        
+        del_f1 = np.array([[-2*q_esti[2],   2*q_esti[3],    -2*q_esti[0],   2*q_esti[1]],
+                           [ 2*q_esti[1],   2*q_esti[0],     2*q_esti[3],   2*q_esti[2]],
+                           [ 0,             -4*q_esti[1],   -4*q_esti[2],   0]]).T
+        
+        del_f2 = np.array([[2*(q_esti[1] * q_esti[3] - q_esti[0] * q_esti[2]) - imu_a[i][0]],
+                           [2*(q_esti[0] * q_esti[1] + q_esti[2] * q_esti[3]) - imu_a[i][1]],
+                           [2*((1/2)    - q_esti[1]**2           - q_esti[2]**2 )   - imu_a[i][2]]])
+
+        del_f = np.squeeze(np.dot(del_f1,del_f2))
+        norm_delf = math.sqrt(del_f[0]**2+del_f[1]**2+del_f[2]**2+del_f[3]**2)
+        
+        del_ft = del_f.T
+        norm_del_ft = np.array([del_ft[0]/norm_delf, del_ft[1]/norm_delf, del_ft[2]/norm_delf, del_ft[3]/norm_delf])
+
+        fuse = gq_est - beta * (norm_del_ft)
+
+        q_esti = quat_norm(q_esti) + fuse*(imu_time[i+1]-imu_time[i]) 
+
+        g = quat2euler(q_esti)
+        rpym.append(g)
+        rm.append(g[0])
+        pm.append(g[1])
+        ym.append(g[2])
+    
+    return rm, pm, ym, rpym
+
+
 if __name__ == '__main__':
     imu_path = cfg['imu']['main_path']
     filename = cfg['imu']['file_name']
@@ -147,7 +211,7 @@ if __name__ == '__main__':
     imu_vals = imu.get('vals')
     imu_ts = imu.get('ts') 
 
-    imu_timestamps = imu_ts.transpose()
+    imu_timestamps = imu_ts.T
     # (['__header__', '__version__', '__globals__', 'vals', 'ts'])
 
     bs_path = cfg['params']['main_path']
@@ -165,10 +229,10 @@ if __name__ == '__main__':
 
     gt = v.get('rots')
     gt_ts = v.get('ts')
-    gt_time = gt_ts.transpose()
+    gt_time = gt_ts.T
     #['__header__', '__version__', '__globals__', 'rots', 'ts'])
 
-    imu_complete, imu_a, imu_g = convert(imu_vals, imu_params)
+    imu_a, imu_g = convert(imu_vals, imu_params)
     rg, pg, yg = [], [], []
     rpyg, og = [], []
     
@@ -178,9 +242,11 @@ if __name__ == '__main__':
     rc, pc, yc = [], [], []
     rpyc = []
 
+    rgt, pgt, ygt = [], [], []
+
     #Lets begin with orientation from VICON GT data
     init_rot_mat = gt[:, :, 0]
-    imu_timestamps = imu_ts.transpose()
+    imu_timestamps = imu_ts.T
 
     rg, pg, yg, og, rpyg = gyro(init_rot_mat, imu_timestamps, imu_g)
     ra, pa, ya, oa, rpya = acc(imu_timestamps, imu_a)   
@@ -190,29 +256,38 @@ if __name__ == '__main__':
 
     rc, pc, yc, rpyc = complementary(rg, pg, yg, ra, pa, ya, af, ac)
 
-    roll_gt, pitch_gt, yaw_gt = [], [], []
     imu_time = imu_ts[0]
     gt_time = gt_ts[0]
 
-    roll_gt, pitch_gt, yaw_gt = orientation_from_gt(gt.transpose())
-   
+    rgt, pgt, ygt = orientation_from_gt(gt.T)
+
+    norm_imu_a, norm_aq, norm_gq = gt2quatconv_norm(rpya, rpyg, imu_a)
+
+    beta = cfg['filter_weight']['madgwick_trust_factor']
+
+    rm, pm, ym, rpym = madgwick(beta, imu_g)
+
     fig, axarr = plt.subplots(3, 1)
     axarr[0].plot(imu_time, rg, label = 'gyro', color = 'red')
+    axarr[0].plot(imu_time, ra, label = 'acc', color = 'blue')
+    axarr[0].plot(imu_time, rc, label = 'comp', color = 'green')
+    axarr[0].plot(imu_time, rm, label = 'madg', color = 'cyan')
+    axarr[0].plot(gt_time, rgt, label = 'vicon', color = 'black')
     axarr[0].set_title('Time vs Roll')
-    axarr[0].plot(gt_time, roll_gt, label = 'vicon', color = 'blue')
-    axarr[1].plot(imu_time, pg, label = 'gyro', color = 'red')
-    axarr[1].set_title('Time vs Pitch')
-    axarr[1].plot(gt_time, pitch_gt, label = 'vicon', color = 'blue')
-    axarr[2].plot(imu_time, yg, label = 'gyro', color = 'red')
-    axarr[2].set_title('Time vs Yaw')
-    axarr[2].plot(gt_time, yaw_gt, label = 'vicon', color = 'blue')
 
-    axarr[0].plot(imu_time, rc, label = 'cf', color = 'green')
-    axarr[1].plot(imu_time, pc, label = 'cf', color = 'green')
-    axarr[2].plot(imu_time, yc, label = 'cf', color = 'green')
-    axarr[0].plot(imu_time, ra, label = 'acc', color = 'black')
-    axarr[1].plot(imu_time, pa, label = 'acc', color = 'black')
-    axarr[2].plot(imu_time, ya, label = 'acc', color = 'black')
+    axarr[1].plot(imu_time, pg, label = 'gyro', color = 'red')
+    axarr[1].plot(imu_time, pa, label = 'acc', color = 'blue')
+    axarr[1].plot(imu_time, pc, label = 'comp', color = 'green')
+    axarr[1].plot(imu_time, pm, label = 'madg', color = 'cyan')
+    axarr[1].plot(gt_time, pgt, label = 'vicon', color = 'black')
+    axarr[1].set_title('Time vs Pitch')
+
+    axarr[2].plot(imu_time, yg, label = 'gyro', color = 'red')
+    axarr[2].plot(imu_time, ya, label = 'acc', color = 'blue')
+    axarr[2].plot(imu_time, yc, label = 'comp', color = 'green')
+    axarr[2].plot(imu_time, ym, label = 'madg', color = 'cyan')
+    axarr[2].plot(gt_time, ygt, label = 'vicon', color = 'black')
+    axarr[2].set_title('Time vs Yaw')
 
     plt.tight_layout()
     plt.legend()
