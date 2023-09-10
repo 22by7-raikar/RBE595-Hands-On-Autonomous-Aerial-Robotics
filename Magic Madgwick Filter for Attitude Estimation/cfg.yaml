@@ -1,0 +1,15 @@
+imu:
+  main_path: "~/Desktop/YourDirectoryID_p0/Phase1/Data/Train/IMU"
+  file_name: "imuRaw1.mat"
+
+params:
+  main_path: "~/Desktop/YourDirectoryID_p0/Phase1/"
+  file_name: "IMUParams.mat"
+
+vicon:
+  main_path: "~/Desktop/YourDirectoryID_p0/Phase1/Data/Train/Vicon" 
+  file_name: "viconRot1.mat"
+
+filter_weight:
+  low_high: 0.2
+  complementary: 0.6
