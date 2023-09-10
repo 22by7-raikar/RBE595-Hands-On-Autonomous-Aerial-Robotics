@@ -1,6 +1,6 @@
 # IMU Attitude Estimation using Madgwick Filter
 
-'Wrapper.py'  contains functions for estimating orientations based on gyroscopic data, accelerometer data, complimentary filter and Madgwick Filter.
+`Wrapper.py` contains functions for estimating orientations based on data from Gyroscope, Accelerometer, Complementary Filter and Madgwick Filter.
 
 1. Clone this repository
 2. Navigate to the folder in your terminal
