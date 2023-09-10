@@ -2,13 +2,15 @@
 
 'Wrapper.py'  contains functions for estimating orientations based on gyroscopic data, accelerometer data, complimentary filter and Madgwick Filter.
 
-1. Run 
+1. Clone this repository
+2. Navigate to the folder in your terminal
+3. Configure the paths to your Data in the cfg.yaml
+4. In the terminal, run the command
 ```bash
 python Wrapper.py
 ```
- to obtain the plots.
-2. Uncomment the Last section to visualize the Rotplots.
-3. You can change the code file directory to obtain graphs for different instances of train and test sets.
+5. Analyse the plots and play with filter weights
+6. Uncomment the Last section to visualize the Rotplots.
 
 # Results
 
