@@ -4,7 +4,7 @@
 
 1. Clone this repository
 2. Navigate to the folder in your terminal
-3. Configure the paths to your Data in the cfg.yaml
+3. Configure the paths to your Data in the `cfg.yaml`
 4. In the terminal, run the command
 ```bash
 python Wrapper.py
