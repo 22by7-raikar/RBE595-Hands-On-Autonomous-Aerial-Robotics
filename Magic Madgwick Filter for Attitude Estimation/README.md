@@ -14,5 +14,5 @@ python Wrapper.py
 
 # Results
 
-Plot of orientation angles estimated from all functions are plotted with legend.
+Plot of orientation angles estimated from all functions are plotted with legend. <br />
 Please refer to `Report.pdf` for our results and methodology
