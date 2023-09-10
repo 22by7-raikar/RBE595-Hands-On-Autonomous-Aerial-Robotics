@@ -90,13 +90,13 @@ def acc(t, imu_a):
 
 
 def complementary(rg, pg, yg, ra, pa, ya, af, ac):
-    ralp = ra[0]
-    palp = pa[0]
-    yalp = ya[0]
+    ralf = ra[0]
+    palf = pa[0]
+    yalf = ya[0]
 
-    rghp = rg[0]
-    pghp = pg[0]
-    yghp = yg[0]
+    rghf = rg[0]
+    pghf = pg[0]
+    yghf = yg[0]
 
     rc.append(ra[0] + rg[0])
     pc.append(pa[0] + pg[0])
@@ -105,19 +105,19 @@ def complementary(rg, pg, yg, ra, pa, ya, af, ac):
     rpyc.append([rc[0], pc[0], yc[0]])
 
     for i in range(len(imu_timestamps)-1):  
-        # Low pass acc -> Stable initially, A-readings not good at higher values``
-        ralp = (1 - af) * ra[i+1] + af * ralp
-        palp = (1 - af) * pa[i+1] + af * palp
-        yalp = (1 - af) * ya[i+1] + af * yalp
+        # Low pass acc -> Stable initially, A-readings not good at higher values
+        ralf = (1 - af) * ra[i+1] + af * ralf
+        palf = (1 - af) * pa[i+1] + af * palf
+        yalf = (1 - af) * ya[i+1] + af * yalf
 
         #High pass gyro -> G-readings Stable later, faster speeds i.e, @ higher values
-        rghp = (1-af) * rg[i+1] + (1 - af) * (rg[i+1] - rghp)
-        pghp = (1-af) * pg[i+1] + (1 - af) * (pg[i+1] - pghp)
-        yghp = (1-af) * yg[i+1] + (1 - af) * (yg[i+1] - yghp)
+        rghf = (1-af) * rg[i+1] + (1 - af) * (rg[i+1] - rghf)
+        pghf = (1-af) * pg[i+1] + (1 - af) * (pg[i+1] - pghf)
+        yghf = (1-af) * yg[i+1] + (1 - af) * (yg[i+1] - yghf)
 
-        a = (1 -ac) * rghp + ac * ralp
-        b = (1 -ac) * pghp + ac * palp
-        c = (1 -ac) * yghp + ac * yalp
+        a = (1 -ac) * rghf + ac * ralf
+        b = (1 -ac) * pghf + ac * palf
+        c = (1 -ac) * yghf + ac * yalf
 
         rc.append(a)
         pc.append(b)
@@ -184,6 +184,7 @@ if __name__ == '__main__':
 
     rg, pg, yg, og, rpyg = gyro(init_rot_mat, imu_timestamps, imu_g)
     ra, pa, ya, oa, rpya = acc(imu_timestamps, imu_a)   
+
 
     af = cfg['filter_weight']['low_high']
     ac = cfg['filter_weight']['complementary']
