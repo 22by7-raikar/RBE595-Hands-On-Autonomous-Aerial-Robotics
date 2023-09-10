@@ -1,9 +1,11 @@
+Clone the repository
+
 # Phase 1
 
-1. Clone the repository
-2. In `cfg.yaml` Adjust the file paths acording to storage location 
-3. Navigate into the Phase 1 folder
-4. In your Terminal run; `python Wrapper.py`
+
+1.  In `cfg.yaml` Adjust the file paths acording to storage location
+2.  Navigate into the Phase 1 folder
+3. In your Terminal run `python Wrapper.py`
 
 # Phase 2
 1. Make sure you have blender
