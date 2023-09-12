@@ -297,10 +297,9 @@ if __name__ == '__main__':
 #############################################################################################
 
 sv = []
+
 sv.append([1,0,0,0,0,0,0])
 
-for i in range(len(norm_gq)-1):
-    sv.append([norm_gq[0], norm_gq[1], norm_gq[2], norm_gq[3], imu_g[0], imu_g[1], imu_g[2]])
 
 P = np.diag(np.concatenate((np.ones(3), np.ones(3))))
 
@@ -308,13 +307,14 @@ P = np.diag(np.concatenate((np.ones(3), np.ones(3))))
 Q = 5e-8 * np.block([[np.ones((3, 3)) + np.eye(3), np.zeros((3, 3))],
                      [np.zeros((3, 3)), np.ones((3, 3)) + np.eye(3)]])
 
+R = np.vstack(np.hstack((np.ones((3, 3)) + np.eye(3)), np.zeros((3, 3))), np.hstack(np.zeros((3, 3), (np.ones((3, 3)) + np.eye(3)))))  
 S = np.linalg.cholesky((P+Q))
 
-root2 = S * math.sqrt(12) # Can take 6 for numerical stability
+root2S = S * math.sqrt(12) # Can take 6 for numerical stability
 
 np.random.seed(42)
 
-w = np.hstack((-root2, root2))
+w = np.hstack((-root2S, root2S))
 W = w.T
 
 # def find_sigma_pts():
@@ -332,19 +332,25 @@ for i in range(len(imu_time) - 1):
         W_q = W_i[:3]
         W_w  = W_i[3:]
 
-        angle =  math.sqrt(W_i[0]**2 + W_i[1]**2 + W_i[2]**2)
-        n_quat = vec2quat(W_i)
+        # angle =  math.sqrt(W_i[0]**2 + W_i[1]**2 + W_i[2]**2)
+        n_quat = quat_vec2quat(W_i)
         n_ori = quat_mult(quat_norm(curr_sv[:4]), n_quat)
 
         new_W = [n_ori[0], n_ori[1], n_ori[2], n_ori[3], curr_sv[3] + W_w[0], curr_sv[4] + W_w[1], curr_sv[5] + W_w[2]] 
         sigma_points.append(new_W)
 
     for k in sigma_points:
-        p_squat = vec2quat2(k[4:],dt)
-        p_mult = quat_mult(quat_norm(k[:4]), p_squat)
-        p_new = [p_mult[0],p_mult[1],p_mult[2],p_mult[3],k[4],k[5],k[6]]
+        delta_sigma_quat = omega_vec2quat(k[4:],dt)
+        proj_mult_quat = quat_mult(quat_norm(k[:4]), delta_sigma_quat)
+        proj_sigma_sv = [proj_mult_quat[0],proj_mult_quat[1],proj_mult_quat[2],proj_mult_quat[3],k[4],k[5],k[6]]
+        sigma_pts_proj.append(proj_sigma_sv)
 
-# print(len(sigma_points[0]))e
+
+    for l in sigma_pts_proj:
+        mean_sigma_pts = np.mean(l, axis = 0)
+        cov_sigma_pts = np.cov(sigma_points) 
+        
+# print(len(sigma_points[0]))
 
 ####################################################
 #Uncomment the code below to visualize the ROTPLOT.#
