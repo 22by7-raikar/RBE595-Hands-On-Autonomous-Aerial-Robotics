@@ -296,21 +296,20 @@ if __name__ == '__main__':
     # plt.show()
 #############################################################################################
 
+
 sv = []
 
 sv.append([1,0,0,0,0,0,0])
-
-
+n = 6 
 P = np.diag(np.concatenate((np.ones(3), np.ones(3))))
 
 # Create Q, the process noise covariance matrix
 Q = 5e-8 * np.block([[np.ones((3, 3)) + np.eye(3), np.zeros((3, 3))],
                      [np.zeros((3, 3)), np.ones((3, 3)) + np.eye(3)]])
 
-R = np.vstack(np.hstack((np.ones((3, 3)) + np.eye(3)), np.zeros((3, 3))), np.hstack(np.zeros((3, 3), (np.ones((3, 3)) + np.eye(3)))))  
 S = np.linalg.cholesky((P+Q))
 
-root2S = S * math.sqrt(12) # Can take 6 for numerical stability
+root2S = S * math.sqrt(2*n) # Can take 6 for numerical stability
 
 np.random.seed(42)
 
@@ -325,6 +324,7 @@ for i in range(len(imu_time) - 1):
     dt = imu_time[i+1] - imu_time[i]  
     sigma_pts_proj = []
 
+    #Get sigma points
     for j in W:
         
         curr_sv = sv[0]
@@ -338,18 +338,39 @@ for i in range(len(imu_time) - 1):
 
         new_W = [n_ori[0], n_ori[1], n_ori[2], n_ori[3], curr_sv[3] + W_w[0], curr_sv[4] + W_w[1], curr_sv[5] + W_w[2]] 
         sigma_points.append(new_W)
+    sigma_proj_w = np.empty(12,4)
+    sigma_proj_q = np.empty(12,3)
 
+    #Get projected sigma points
     for k in sigma_points:
         delta_sigma_quat = omega_vec2quat(k[4:],dt)
         proj_mult_quat = quat_mult(quat_norm(k[:4]), delta_sigma_quat)
         proj_sigma_sv = [proj_mult_quat[0],proj_mult_quat[1],proj_mult_quat[2],proj_mult_quat[3],k[4],k[5],k[6]]
         sigma_pts_proj.append(proj_sigma_sv)
+        sigma_proj_q.append(proj_mult_quat)
+        sigma_proj_w.append(k[4:])
+
+    #Get average of sigma points
+    w_spmean = np.mean((sigma_proj_w), axis = 0)
+    q_spmean, err = intrinsic_gd(sigma_proj_q,sv[:4]) 
+    mean_sp = np.concatenate((w_spmean, q_spmean))
+    sub_sigma_pts = []
+    
+    for i, sp in sigma_points:
+        sp_quat = sp[:4]
+        sp_w = sp[4:]
+        diff_sp_quat = sp_quat - mean_sp
+        magnmaxis_diff_sp_quat = axis_to_quat(diff_sp_quat)
+        diff_sp_w = sp_w - w_spmean
+
+        diff_sigma_pts = np.concatenate((diff_sp_quat, diff_sp_w))
+        sub_sigma_pts.append(diff_sigma_pts)
+
+    # qmean_sigma_pts = quat_avg(Q, [1]*2*n)
+
+R = np.vstack(np.hstack((np.ones((3, 3)) + np.eye(3)), np.zeros((3, 3))), np.hstack(np.zeros((3, 3), (np.ones((3, 3)) + np.eye(3)))))  
 
 
-    for l in sigma_pts_proj:
-        mean_sigma_pts = np.mean(l, axis = 0)
-        cov_sigma_pts = np.cov(sigma_points) 
-        
 # print(len(sigma_points[0]))
 
 ####################################################
