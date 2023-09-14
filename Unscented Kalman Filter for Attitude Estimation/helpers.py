@@ -143,7 +143,7 @@ def quat_mult(x,y):
 
     return [a,b,c,d]
 
-def vec2quat(vec):
+def quat_vec2quat(vec):
     # Compute the angle and normalized axis of rotation
     angle = np.sqrt(np.sum(vec**2))
     ev = vec / angle
@@ -157,16 +157,101 @@ def vec2quat(vec):
     
     return q
 
-def vec2quat2(vec,dt):
+def omega_vec2quat(vec,dt):
     # Compute the angle and normalized axis of rotation
     del_angle = np.sqrt(np.sum(vec**2))*dt
     ev = vec / np.sqrt(np.sum(vec**2))
 
     # Compute the quaternion
-    q = np.array([np.cos(angle / 2), np.sin(angle / 2) * ev[0], np.sin(angle / 2) * ev[1], np.sin(angle / 2) * ev[2]])
+    q = np.array([np.cos(del_angle / 2), np.sin(del_angle / 2) * ev[0], np.sin(del_angle / 2) * ev[1], np.sin(del_angle / 2) * ev[2]])
     
     # Handle NaN and Inf values by setting them to 0
     q[np.isnan(q)] = 0
     q[np.isinf(q)] = 0
     
     return q
+
+# def quat_avg(Q_list, weights):
+#     return np.linalg.eigh(np.einsum('ij,ik,i->...jk', Q_list, Q_list, weights))[1][:, -1]
+
+def quat_inv(q):
+    norm = q[0]**2+q[1]**2+q[2]**2+q[3]**2
+    q_inv = [q[0]/norm,-q[1]/norm,-q[2]/norm,-q[3]/norm]
+    return q_inv
+
+
+def axis_angle2quat(a):
+    q = []
+    angle = np.linalg.norm(a)
+    if angle != 0:
+        axis = a/angle
+    else:
+        axis = np.array([1, 0, 0])
+    q[0] = math.cos(angle/2)
+    q[1:4] = axis*math.sin(angle/2)
+    return q
+
+
+def intrinsic_gd(q, qmean):
+    err = []
+    e = np.inf
+    itr = 0 
+    threshold = 0.01
+    while itr < 500:
+        for v in q:
+            e = quat_mult(q,quat_inv(qmean))
+            err.append(e)
+            
+            theta = 2 * np.arccos(e[0])
+            vec_norm = (e[1]**2 + e[2]**2 + e[3]**2)
+            axis = (e[1]/vec_norm, e[2]/vec_norm, e[3]/vec_norm)
+            err.append(theta*axis)
+        
+        mean_err = np.mean(err, axis = 0)
+        mean_err_quat = axis_angle2quat(mean_err)
+        qmean = quat_mult(mean_err_quat, qmean)
+
+        if abs(mean_err) < threshold:
+            break
+        itr+=1
+    
+    return qmean, err
+
+
+def axis_to_quat(axis, angle=None):
+    # axis: 3x1
+    # angle: scalar (optional)
+    
+    if angle is None:
+        angle = math.sqrt(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2])
+        if angle == 0:
+            return [1, 0, 0, 0]
+        
+        axis = axis / angle
+    
+    q0 = np.cos(angle / 2)
+    magnitude = math.sqrt(axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2])
+    
+    if magnitude == 0:
+        return [1, 0, 0, 0]
+    
+    axis = axis / magnitude
+    q_vec = np.sin(angle / 2) * axis
+    q = [q0, q_vec[0], q_vec[1], q_vec[2]]
+    q = quat_norm(q)
+    return q
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+            
