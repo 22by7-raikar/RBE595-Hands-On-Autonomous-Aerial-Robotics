@@ -300,78 +300,159 @@ if __name__ == '__main__':
 sv = []
 
 sv.append([1,0,0,0,0,0,0])
-n = 6 
-P = np.diag(np.concatenate((np.ones(3), np.ones(3))))
-
+n = 6
+P = np.eye(6)
 # Create Q, the process noise covariance matrix
 Q = 5e-8 * np.block([[np.ones((3, 3)) + np.eye(3), np.zeros((3, 3))],
                      [np.zeros((3, 3)), np.ones((3, 3)) + np.eye(3)]])
 
+R = 0.5*(np.eye(6))
+
 S = np.linalg.cholesky((P+Q))
 
+
 root2S = S * math.sqrt(2*n) # Can take 6 for numerical stability
+
 
 np.random.seed(42)
 
 w = np.hstack((-root2S, root2S))
+
 W = w.T
 
 # def find_sigma_pts():
-sigma_points = []
+sigma_points_trans = []
+
+ruk, puk, yuk = [], [], []
 
 for i in range(len(imu_time) - 1):  
     
     dt = imu_time[i+1] - imu_time[i]  
     sigma_pts_proj = []
+    # print(W)
+    # exit()
+    #Get sigma points ----> Basically New State Vector ---------> y
+    sigma_points_trans_q = []
+    sigma_points_trans_w = []
 
-    #Get sigma points
     for j in W:
+
+        curr_sv = sv[i]
         
-        curr_sv = sv[0]
         W_i = j
         W_q = W_i[:3]
         W_w  = W_i[3:]
 
+
         # angle =  math.sqrt(W_i[0]**2 + W_i[1]**2 + W_i[2]**2)
-        n_quat = quat_vec2quat(W_i)
-        n_ori = quat_mult(quat_norm(curr_sv[:4]), n_quat)
+        noise_quat = quat_vec2quat(W_i)
+        noisy_orientation = quat_mult(quat_norm(curr_sv[:4]), noise_quat)
+        noisy_angvel = [curr_sv[3] + W_w[0], curr_sv[4] + W_w[1], curr_sv[5] + W_w[2]]
+        sigma_points_trans_q.append(noisy_orientation)
+        sigma_points_trans_w.append(noisy_angvel)
 
-        new_W = [n_ori[0], n_ori[1], n_ori[2], n_ori[3], curr_sv[3] + W_w[0], curr_sv[4] + W_w[1], curr_sv[5] + W_w[2]] 
-        sigma_points.append(new_W)
-    sigma_proj_w = np.empty(12,4)
-    sigma_proj_q = np.empty(12,3)
 
-    #Get projected sigma points
-    for k in sigma_points:
+        #Noisy state -------> Weird X_i
+        noisy_sv = [noisy_orientation[0], noisy_orientation[1], noisy_orientation[2], noisy_orientation[3], noisy_angvel[0], noisy_angvel[1], noisy_angvel[2]] 
+        
+        sigma_points_trans.append(noisy_sv)
+
+    sp_trans_time_proj_w = np.empty((12,3))       #Y_i
+    sp_trans_time_proj_q = np.empty((12,4))
+
+    #Get projected sigma points in the next time stamp x_cap_k 
+    for k in sigma_points_trans:
         delta_sigma_quat = omega_vec2quat(k[4:],dt)
-        proj_mult_quat = quat_mult(quat_norm(k[:4]), delta_sigma_quat)
-        proj_sigma_sv = [proj_mult_quat[0],proj_mult_quat[1],proj_mult_quat[2],proj_mult_quat[3],k[4],k[5],k[6]]
+        proj_mult_quat = quat_mult(quat_norm(k[:4]), quat_norm(delta_sigma_quat))
+        proj_sigma_sv = [proj_mult_quat[0],proj_mult_quat[1],proj_mult_quat[2],proj_mult_quat[3], k[4], k[5], k[6]]
         sigma_pts_proj.append(proj_sigma_sv)
-        sigma_proj_q.append(proj_mult_quat)
-        sigma_proj_w.append(k[4:])
+        np.append(sp_trans_time_proj_q, proj_mult_quat)
+        np.append(sp_trans_time_proj_w, k[4:])
 
-    #Get average of sigma points
-    w_spmean = np.mean((sigma_proj_w), axis = 0)
-    q_spmean, err = intrinsic_gd(sigma_proj_q,sv[:4]) 
-    mean_sp = np.concatenate((w_spmean, q_spmean))
+    #Get average of projected sigma points x_bar
+    w_trans_time_proj_sp_mean = np.mean(sp_trans_time_proj_w, axis = 0)
+    q_trans_time_proj_sp_mean, err = intrinsic_gd(sp_trans_time_proj_q, sv[i]) 
+
+    trans_time_proj_sp_mean = np.concatenate((w_trans_time_proj_sp_mean, q_trans_time_proj_sp_mean))
     sub_sigma_pts = []
     
-    for i, sp in sigma_points:
+    for sp in sigma_points_trans:
+        
         sp_quat = sp[:4]
         sp_w = sp[4:]
-        diff_sp_quat = sp_quat - mean_sp
+
+        diff_sp_quat = []
+        for x,y in zip(sp_quat,q_trans_time_proj_sp_mean):
+            diff_sp_quat.append(x-y)
+        
         magnmaxis_diff_sp_quat = axis_to_quat(diff_sp_quat)
-        diff_sp_w = sp_w - w_spmean
+        diff_sp_w = sp_w - w_trans_time_proj_sp_mean   
 
         diff_sigma_pts = np.concatenate((diff_sp_quat, diff_sp_w))
-        sub_sigma_pts.append(diff_sigma_pts)
+        sub_sigma_pts.append(diff_sigma_pts) 
+    
+    P_k_bar = []
 
-    # qmean_sigma_pts = quat_avg(Q, [1]*2*n)
+    for i in sub_sigma_pts:
 
-R = np.vstack(np.hstack((np.ones((3, 3)) + np.eye(3)), np.zeros((3, 3))), np.hstack(np.zeros((3, 3), (np.ones((3, 3)) + np.eye(3)))))  
+        cov = np.dot(diff_sigma_pts, diff_sigma_pts.T)
 
+        P_k_bar = P_k_bar + cov
+        P_k_bar = P_k_bar / 12
 
-# print(len(sigma_points[0]))
+    g = [0, 0, 0, 9.81]
+
+    measurement_pts_q = []
+    measurement_pts_w = []
+    measurement_pts = []
+
+    # print("yeh bata de re baba:",sigma_points_trans_q,"ncbdvbevui",sigma_points_trans_w)
+
+    for spq, spw in zip(sigma_points_trans_q, sigma_points_trans_w):
+
+        spq_inv = quat_inv(spq)
+        g_dash = quat_mult(spq_inv, quat_mult(g, spq))
+        measurement_pts_q.append(g_dash)
+        measurement_pts_w.append(spw)
+        measurement_pts.append([g_dash[1], g_dash[2], g_dash[3], spw[0], spw[1], spw[2]])
+
+    measurement_pts = np.array(measurement_pts)    
+    meas_mean = np.mean(measurement_pts)
+    err = np.array(err)
+    
+    diff_meas_mean = (measurement_pts) - (meas_mean)   #Innovation
+
+    Pzz = (diff_meas_mean.T) @ (diff_meas_mean)/(2*n)
+
+    Pvv = Pzz + R
+    
+    # print("Pvv: ", Pvv)
+    # print("phele yeh toh bata:", err.T.shape, "and", diff_meas_mean.shape)
+    Pxz = (err.T @ diff_meas_mean) / 12
+    # print("Pxz: ", Pxz)
+
+    Pkk = np.dot(Pxz, np.linalg.inv(Pvv))
+
+    # print("yeh sambhal le phele:", Pkk.shape, "nckufdhvkdhfvke", diff_meas_mean.shape)
+    # print("Pkk: ", Pkk)
+
+    print("diff_meas_mean: ", Pkk.shape, diff_meas_mean.shape)
+    k_gain = np.average((Pkk @ diff_meas_mean.T))
+    print("K GAIN : ", w_trans_time_proj_sp_mean)
+
+    update_posterior_est =  quat_mult(axis_to_quat(k_gain[:3]), trans_time_proj_sp_mean)
+    print(k_gain[4:])
+    sum = w_trans_time_proj_sp_mean + k_gain[4:]
+    new_estimate = (update_posterior_est[0],update_posterior_est[1],update_posterior_est[2],update_posterior_est[3], sum[0],sum[1],sum[3])
+    updated_covariance = (k_gain @ Pvv) @ k_gain.transpose()
+
+    angles_new_estimate = quat2euler(new_estimate[:4])
+
+    ruk.append(angles_new_estimate[0])
+    puk.append(angles_new_estimate[1])
+    yuk.append(angles_new_estimate[2])
+
+    sv.append(new_estimate)
 
 ####################################################
 #Uncomment the code below to visualize the ROTPLOT.#
