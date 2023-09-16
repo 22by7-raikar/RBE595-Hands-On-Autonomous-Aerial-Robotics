@@ -300,8 +300,10 @@ if __name__ == '__main__':
 sv = []
 
 sv.append([1,0,0,0,0,0,0])
+
 n = 6
 P = np.eye(6)
+
 # Create Q, the process noise covariance matrix
 Q = 5e-8 * np.block([[np.ones((3, 3)) + np.eye(3), np.zeros((3, 3))],
                      [np.zeros((3, 3)), np.ones((3, 3)) + np.eye(3)]])
@@ -312,7 +314,6 @@ S = np.linalg.cholesky((P+Q))
 
 
 root2S = S * math.sqrt(2*n) # Can take 6 for numerical stability
-
 
 np.random.seed(42)
 
@@ -329,9 +330,9 @@ for i in range(len(imu_time) - 1):
     
     dt = imu_time[i+1] - imu_time[i]  
     sigma_pts_proj = []
-    # print(W)
-    # exit()
+
     #Get sigma points ----> Basically New State Vector ---------> y
+    
     sigma_points_trans_q = []
     sigma_points_trans_w = []
 
@@ -343,11 +344,12 @@ for i in range(len(imu_time) - 1):
         W_q = W_i[:3]
         W_w  = W_i[3:]
 
-
         # angle =  math.sqrt(W_i[0]**2 + W_i[1]**2 + W_i[2]**2)
+        
         noise_quat = quat_vec2quat(W_i)
         noisy_orientation = quat_mult(quat_norm(curr_sv[:4]), noise_quat)
         noisy_angvel = [curr_sv[3] + W_w[0], curr_sv[4] + W_w[1], curr_sv[5] + W_w[2]]
+
         sigma_points_trans_q.append(noisy_orientation)
         sigma_points_trans_w.append(noisy_angvel)
 
@@ -360,20 +362,25 @@ for i in range(len(imu_time) - 1):
     sp_trans_time_proj_w = np.empty((12,3))       #Y_i
     sp_trans_time_proj_q = np.empty((12,4))
 
-    #Get projected sigma points in the next time stamp x_cap_k 
+    #Get projected sigma points in the next time stamp x_cap_k using the noisy sigma points 
     for k in sigma_points_trans:
+
         delta_sigma_quat = omega_vec2quat(k[4:],dt)
         proj_mult_quat = quat_mult(quat_norm(k[:4]), quat_norm(delta_sigma_quat))
+
         proj_sigma_sv = [proj_mult_quat[0],proj_mult_quat[1],proj_mult_quat[2],proj_mult_quat[3], k[4], k[5], k[6]]
         sigma_pts_proj.append(proj_sigma_sv)
+
         np.append(sp_trans_time_proj_q, proj_mult_quat)
         np.append(sp_trans_time_proj_w, k[4:])
 
     #Get average of projected sigma points x_bar
+
     w_trans_time_proj_sp_mean = np.mean(sp_trans_time_proj_w, axis = 0)
     q_trans_time_proj_sp_mean, err = intrinsic_gd(sp_trans_time_proj_q, sv[i]) 
 
-    trans_time_proj_sp_mean = np.concatenate((w_trans_time_proj_sp_mean, q_trans_time_proj_sp_mean))
+    trans_time_proj_sp_mean = np.concatenate((quat2vec(q_trans_time_proj_sp_mean),w_trans_time_proj_sp_mean))    #x_k_bar
+
     sub_sigma_pts = []
     
     for sp in sigma_points_trans:
@@ -382,18 +389,19 @@ for i in range(len(imu_time) - 1):
         sp_w = sp[4:]
 
         diff_sp_quat = []
-        for x,y in zip(sp_quat,q_trans_time_proj_sp_mean):
-            diff_sp_quat.append(x-y)
-        
-        magnmaxis_diff_sp_quat = axis_to_quat(diff_sp_quat)
+
+        # X_i - x_bar
+        diff_sp_quat = quat_mult(quat_inv(sp_quat), q_trans_time_proj_sp_mean)
+
+        # magnmaxis_diff_sp_quat = axis_to_quat(diff_sp_quat)
         diff_sp_w = sp_w - w_trans_time_proj_sp_mean   
 
         diff_sigma_pts = np.concatenate((diff_sp_quat, diff_sp_w))
-        sub_sigma_pts.append(diff_sigma_pts) 
+        sub_sigma_pts.append(diff_sigma_pts) #P_k_bar-1
     
     P_k_bar = []
 
-    for i in sub_sigma_pts:
+    for ssp in sub_sigma_pts:
 
         cov = np.dot(diff_sigma_pts, diff_sigma_pts.T)
 
@@ -406,44 +414,43 @@ for i in range(len(imu_time) - 1):
     measurement_pts_w = []
     measurement_pts = []
 
-    # print("yeh bata de re baba:",sigma_points_trans_q,"ncbdvbevui",sigma_points_trans_w)
-
-    for spq, spw in zip(sigma_points_trans_q, sigma_points_trans_w):
+    for spq, spw in zip(sigma_points_trans_q, sigma_points_trans_w):  #Iterating trough Yi
 
         spq_inv = quat_inv(spq)
         g_dash = quat_mult(spq_inv, quat_mult(g, spq))
+
         measurement_pts_q.append(g_dash)
         measurement_pts_w.append(spw)
         measurement_pts.append([g_dash[1], g_dash[2], g_dash[3], spw[0], spw[1], spw[2]])
 
-    measurement_pts = np.array(measurement_pts)    
-    meas_mean = np.mean(measurement_pts)
-    err = np.array(err)
-    
-    diff_meas_mean = (measurement_pts) - (meas_mean)   #Innovation
 
-    Pzz = (diff_meas_mean.T) @ (diff_meas_mean)/(2*n)
+    measurement_pts = np.array(measurement_pts)    #Zi
+    meas_mean = np.mean(measurement_pts)        #Z_mean
+    err = np.array(err)
+
+    measurement = np.concatenate((imu_a[i], imu_g[i]))
+    
+
+    Vk = np.array((measurement) - (meas_mean))   #Innovation : Zi - Z_mean
+
+    for spti in sigma_points_trans:
+        ycm = quat_mult(quat_inv(trans_time_proj_sp_mean[:4]), spti[:4])
+        ycmm = [ycm[a] - spti[a] for a in range(len(ycm))]
+        y_centered_mean = [ycm[0],ycm[1],ycm[2],ycm[3],ycmm[0],ycmm[1],ycmm[2]]
+
+
+    Pzz =  Vk @ Vk.T/(2*n)
 
     Pvv = Pzz + R
+    Pxz = np.dot(trans_time_proj_sp_mean, Vk) / 12
+
+    K = np.dot(Pxz, np.linalg.pinv(Pvv))
+    k_gain = K @ Vk.T
+    update_posterior_est =  quat_mult(axis_to_quat(k_gain), q_trans_time_proj_sp_mean)
     
-    # print("Pvv: ", Pvv)
-    # print("phele yeh toh bata:", err.T.shape, "and", diff_meas_mean.shape)
-    Pxz = (err.T @ diff_meas_mean) / 12
-    # print("Pxz: ", Pxz)
+    sum = w_trans_time_proj_sp_mean + k_gain[3:]
 
-    Pkk = np.dot(Pxz, np.linalg.inv(Pvv))
-
-    # print("yeh sambhal le phele:", Pkk.shape, "nckufdhvkdhfvke", diff_meas_mean.shape)
-    # print("Pkk: ", Pkk)
-
-    print("diff_meas_mean: ", Pkk.shape, diff_meas_mean.shape)
-    k_gain = np.average((Pkk @ diff_meas_mean.T))
-    print("K GAIN : ", w_trans_time_proj_sp_mean)
-
-    update_posterior_est =  quat_mult(axis_to_quat(k_gain[:3]), trans_time_proj_sp_mean)
-    print(k_gain[4:])
-    sum = w_trans_time_proj_sp_mean + k_gain[4:]
-    new_estimate = (update_posterior_est[0],update_posterior_est[1],update_posterior_est[2],update_posterior_est[3], sum[0],sum[1],sum[3])
+    new_estimate = (update_posterior_est[0],update_posterior_est[1],update_posterior_est[2],update_posterior_est[3], sum[0],sum[1],sum[2])
     updated_covariance = (k_gain @ Pvv) @ k_gain.transpose()
 
     angles_new_estimate = quat2euler(new_estimate[:4])
@@ -452,8 +459,46 @@ for i in range(len(imu_time) - 1):
     puk.append(angles_new_estimate[1])
     yuk.append(angles_new_estimate[2])
 
+    print("abhi itna hi hua hai:",i)
+
     sv.append(new_estimate)
 
+
+
+
+print("yeh hai rukkkkkkkkkkk:",ruk)
+
+
+fig, axarr = plt.subplots(3, 1)
+# axarr[0].plot(imu_time, rg, label = 'gyro', color = 'red')
+# axarr[0].plot(imu_time, ra, label = 'acc', color = 'blue')
+# axarr[0].plot(imu_time, rc, label = 'comp', color = 'green')
+# axarr[0].plot(imu_time, rm, label = 'madg', color = 'cyan')
+axarr[0].plot(gt_time, rgt, label = 'vicon', color = 'black')
+axarr[0].plot(imu_time, ruk, label = 'vicon', color = 'black')
+axarr[0].set_title('Time vs Roll')
+
+# axarr[1].plot(imu_time, pg, label = 'gyro', color = 'red')
+# axarr[1].plot(imu_time, pa, label = 'acc', color = 'blue')
+# axarr[1].plot(imu_time, pc, label = 'comp', color = 'green')
+# axarr[1].plot(imu_time, pm, label = 'madg', color = 'cyan')
+axarr[1].plot(gt_time, pgt, label = 'vicon', color = 'black')
+axarr[1].plot(imu_time, puk, label = 'vicon', color = 'black')
+
+axarr[1].set_title('Time vs Pitch')
+
+# axarr[2].plot(imu_time, yg, label = 'gyro', color = 'red')
+# axarr[2].plot(imu_time, ya, label = 'acc', color = 'blue')
+# axarr[2].plot(imu_time, yc, label = 'comp', color = 'green')
+# axarr[2].plot(imu_time, ym, label = 'madg', color = 'cyan')
+axarr[2].plot(gt_time, ygt, label = 'vicon', color = 'black')
+axarr[2].plot(imu_time, yuk, label = 'vicon', color = 'black')
+
+axarr[2].set_title('Time vs Yaw')
+
+plt.tight_layout()
+plt.legend()
+plt.show()
 ####################################################
 #Uncomment the code below to visualize the ROTPLOT.#
 ####################################################
