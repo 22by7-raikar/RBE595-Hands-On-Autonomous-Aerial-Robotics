@@ -37,9 +37,9 @@ def convert(imu_vals, imu_params):
         az = acc_conv(row[2],baz,sz)
 
         if calc_bias == 0:
-            bgz = np.mean(imu_vals[:500, 3])
-            bpx = np.mean(imu_vals[:500, 4])
-            bpy = np.mean(imu_vals[:500, 5])
+            bgz = np.mean(imu_vals[:1000, 3])
+            bpx = np.mean(imu_vals[:1000, 4])
+            bpy = np.mean(imu_vals[:1000, 5])
             calc_bias = 1
 
         wz = ang_conv(row[3],bgz)
@@ -278,8 +278,8 @@ n = cfg['filter_params']['ukf_num_ind_var']
 
 # ##########SET 1 BAD
 Pk = np.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
-Q = np.diag([ 110, 110, 110, 0.5, 0.5, 0.5 ])
-R = np.diag([ 11.2, 11.2, 11.2, 0.1, 0.1, 0.1 ])
+Q = np.diag([ 105, 105, 105, 0.5, 0.5, 0.5])
+R = np.diag([ 11.2, 11.2, 11.2, 0.1, 0.1, 0.1])
 
 for i in range(len(imu_time)):
 
