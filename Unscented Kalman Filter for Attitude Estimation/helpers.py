@@ -2,7 +2,7 @@ import math
 import numpy as np
 
 def acc_conv(acc, b, s):
-    return (float(acc*s+b)*9.81))  
+    return (float((acc*s)+b)*9.81)  
 
 
 def ang_conv(angle, b):
