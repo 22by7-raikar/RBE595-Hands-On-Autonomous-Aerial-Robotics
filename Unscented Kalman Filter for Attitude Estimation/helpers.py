@@ -66,16 +66,15 @@ def euler2quat(r):
 
 def quat_norm(q):
     # Check if the input quaternion is a zero quaternion
-    if all(component == 0 for component in q):
-        return [1, 0, 0, 0]
-
-    d = math.sqrt(q[0]**2 + q[1]**2 + q[2]**2 + q[3]**2)
+    
+    d = np.sqrt(q[0]**2 + q[1]**2 + q[2]**2 + q[3]**2)
 
     if d != 0:
-        return [q[0] / d, q[1] / d, q[2] / d, q[3] / d]
+        return np.array([q[0] / d, q[1] / d, q[2] / d, q[3] / d])
+    
     else:
         # Handle the case when d is zero (shouldn't normally happen if the input is valid)
-        return [1, 0, 0, 0]
+        return np.array([1.0, 0.0, 0.0, 0.0])
 
 def conv2quat(euler):
 
@@ -153,31 +152,42 @@ def quat_mult(x,y):
     return [a,b,c,d]
 
 def quat_vec2quat(vec):
-    angle = np.sqrt(np.sum(vec**2))
+    # Calculate the squared magnitude of the vector
+
+    norm_sq = np.sqrt(np.sum(vec**2))
+    
+    # Check if the magnitude is zero or contains NaN/Inf values
+    if norm_sq == 0 or np.isnan(norm_sq) or np.isinf(norm_sq):
+        return np.array([1.0, 0.0, 0.0, 0.0])
+    
+    # Calculate the magnitude
+    angle = norm_sq
+    
+    # Normalize the vector
     ev = vec / angle
 
     q = np.array([np.cos(angle / 2), np.sin(angle / 2) * ev[0], np.sin(angle / 2) * ev[1], np.sin(angle / 2) * ev[2]])
     
-    # Handle NaN and Inf values by setting them to 0
-    q[np.isnan(q)] = 0
-    q[np.isinf(q)] = 0
-    
     return quat_norm(q)
 
-def omega_vec2quat(vec,dt):
+def omega_vec2quat(vec, dt):
+    
+    norm_sq = vec[0]**2 + vec[1]**2 + vec[2]**2
+    
+    # Check if the squared norm is zero or contains NaN/Inf values
+    if norm_sq == 0 or np.isnan(norm_sq) or np.isinf(norm_sq):
+        return np.array([1.0, 0.0, 0.0, 0.0])
 
-    del_angle = np.sqrt(vec[0]**2+vec[1]**2+vec[2]**2)*dt
-
-    if del_angle != 0:
-
-        ev = vec / np.sqrt(vec[0]**2+vec[1]**2+vec[2]**2)
-
-    else: 
-        return [1, 0.0, 0.0, 0.0]
+    norm = np.sqrt(norm_sq)
+    del_angle = norm * dt
+    ev = vec / norm
 
     q = np.array([np.cos(del_angle / 2), np.sin(del_angle / 2) * ev[0], np.sin(del_angle / 2) * ev[1], np.sin(del_angle / 2) * ev[2]])
-    
-    
+
+    # Handle NaN and Inf values by setting them to 0
+    q[np.isnan(q)] = 0.0
+    q[np.isinf(q)] = 0.0
+
     return q
 
 
@@ -202,20 +212,21 @@ def omega_vec2quat(vec,dt):
 
 def quat2vec(q):
 
-    angle = np.arccos(q[0]) * 2
+    vec_norm = np.sqrt(q[1]**2+q[2]**2+q[3]**2)
+    scal = q[0]
 
-    mod = np.sqrt(1 - q[0]**2)
+    angle = np.arctan2(vec_norm,scal)
 
-    if mod == 0:
+    if vec_norm == 0:
         return np.array([0,0,0])
     
-    axis_x = q[1] / mod
-    axis_y = q[2] / mod
-    axis_z = q[3] / mod   
+    axis_x = q[1] / vec_norm
+    axis_y = q[2] / vec_norm
+    axis_z = q[3] / vec_norm   
 
-    axis_x *= angle
-    axis_y *= angle
-    axis_z *= angle
+    axis_x *= angle*2
+    axis_y *= angle*2
+    axis_z *= angle*2
 
     magnaxis = np.array([axis_x, axis_y, axis_z])
 
@@ -223,12 +234,12 @@ def quat2vec(q):
 
 
 def quat_inv(q):
-    norm_sq = q[0]**2 + q[1]**2 + q[2]**2 + q[3]**2
+    norm_sq = np.sqrt(q[0]**2 + q[1]**2 + q[2]**2 + q[3]**2)
 
     if norm_sq == 0:
         q_inv = [1, 0, 0, 0]
     else:
-        norm_inv = 1 / norm_sq
+        norm_inv = 1.0 / norm_sq
         q_inv = [q[0] * norm_inv, -q[1] * norm_inv, -q[2] * norm_inv, -q[3] * norm_inv]
 
     return q_inv
@@ -243,7 +254,8 @@ def axis_angle2quat(a):
         axis = a/angle
     
     else:
-        axis = np.array([1, 0, 0])
+        q = [1.0, 0.0, 0.0, 0.0]
+        return q
 
     q[0] = math.cos(angle/2)
     q[1:4] = axis*math.sin(angle/2)
@@ -264,23 +276,12 @@ def intrinsic_gd(q, qmean):
 
             e = quat_mult(quat_norm(v),quat_inv(qmean))
 
-            theta = 2 * math.acos(e[0])
-            
-            vec_norm = e[1]**2 + e[2]**2 + e[3]**2
-
-            if vec_norm == 0:
-            
-                axis = [0, 0, 0]
-                
-            else:
-            
-                axis = [e[1]/vec_norm, e[2]/vec_norm, e[3]/vec_norm]
-
-            err.append(np.dot(theta, axis))
+            err.append(quat2vec(e))
 
         mean_err = np.mean(err, axis = 0)
+
         mean_err_quat = axis_angle2quat(mean_err)
-        qmean = quat_norm(quat_mult(quat_norm(mean_err_quat), qmean[:4]))
+        qmean = quat_mult(quat_norm(mean_err_quat), quat_norm(qmean[:4]))
 
         mean_err_mag = np.sqrt(mean_err[0]**2+mean_err[1]**2+mean_err[2]**2)    
 
@@ -298,8 +299,8 @@ def axis_to_quat(axis, angle=None):
     if angle is None:
         angle = math.sqrt(axis[0]**2 + axis[1]**2 + axis[2]**2)
 
-        if angle == 0:
-            return [1, 0, 0, 0]
+        if angle == 0.0:
+            return [1.0, 0.0, 0.0, 0.0]
             
         axis = [x / angle for x in axis]
     
@@ -307,7 +308,7 @@ def axis_to_quat(axis, angle=None):
     magnitude = math.sqrt(axis[0]**2 + axis[1]**2 + axis[2]**2)
     
     if magnitude == 0:
-        return [1, 0, 0, 0]
+        return [1.0, 0.0, 0.0, 0.0]
     
     axis = [x / magnitude for x in axis]
 
