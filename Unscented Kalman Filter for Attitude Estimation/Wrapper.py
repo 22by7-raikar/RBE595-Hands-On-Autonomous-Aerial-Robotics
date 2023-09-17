@@ -276,45 +276,9 @@ sv.append([1,0,0,0,0,0,0])
 
 n = cfg['filter_params']['ukf_num_ind_var']
 
-##########SET 1 BAD
-# Pk = np.diag([82e-4, 82e-4, 82e-4, 33e-2, 33e-2, 4e-1])
-# Q = np.diag([ 82e-4, 82e-4, 82e-4, 33e-2, 33e-2, 4e-1 ])
-# R = np.diag([ 75e-1, 75e-1, 75e-1, 45e-1, 45e-1, 47e-1 ])
-
-#########SET 2 DECENT
 Pk = 1e-2 * np.eye(6)
 Q = np.diag(np.concatenate((100 * np.ones(3), 0.1 * np.ones(3))))
 R = np.diag(np.concatenate((0.5 * np.ones(3), 1e-2 * np.ones(3))))
-
-#########SET 3 BAD
-# Pk = np.diag(np.concatenate((np.ones(3), np.ones(3))))
-# Q = 5e-8 * np.block([[np.ones((3, 3)) + np.eye(3), np.zeros((3, 3))],
-#                     [np.zeros((3, 3)), np.ones((3, 3)) + np.eye(3)]])
-# R = np.block([[2.8e-4 * (np.ones((3, 3)) + np.eye(3)), np.zeros((3, 3))],
-#               [np.zeros((3, 3)), 10e-4 * (np.ones((3, 3)) + np.eye(3))]])
-
-
-########SET 4 BAD
-# Pk = np.eye(6)
-# Q = np.diag([100.0, 100.0, 100.0, 0.1, 0.1, 0.1])
-# R = np.diag([0.5, 0.5, 0.5, 0.01, 0.01, 0.01])
-
-# Pk_values = cfg['Pk']
-# Q_values  = cfg['Q']
-# R_values  = cfg['R']
-
-# Convert the values to NumPy arrays
-# Pk = np.diag(Pk_values)
-# Q = np.diag(Q_values)
-# R = np.diag(R_values)
-
-# print("Pk: \n \n")
-# print(Pk)
-# print("Q: \n \n")
-# print(Q)
-# print("R: \n \n")
-# print(R)
-# exit(0)
 
 for i in range(len(imu_time)):
 
@@ -469,26 +433,14 @@ for i in range(len(imu_time)):
 
 
 fig, axarr = plt.subplots(3, 1)
-# axarr[0].plot(imu_time, rg, label = 'gyro', color = 'red')
-# axarr[0].plot(imu_time, ra, label = 'acc', color = 'blue')
-# axarr[0].plot(imu_time, rc, label = 'comp', color = 'green')
-# axarr[0].plot(imu_time, rm, label = 'madg', color = 'cyan')
 axarr[0].plot(gt_time, rgt, label = 'vicon', color = 'black')
 axarr[0].plot(imu_time, ruk, label = 'ukf', color = 'pink')
 axarr[0].set_title('Time vs Roll')
 
-# axarr[1].plot(imu_time, pg, label = 'gyro', color = 'red')
-# axarr[1].plot(imu_time, pa, label = 'acc', color = 'blue')
-# axarr[1].plot(imu_time, pc, label = 'comp', color = 'green')
-# axarr[1].plot(imu_time, pm, label = 'madg', color = 'cyan')
 axarr[1].plot(gt_time, pgt, label = 'vicon', color = 'black')
 axarr[1].plot(imu_time, puk, label = 'ukf', color = 'pink')
 axarr[1].set_title('Time vs Pitch')
 
-# axarr[2].plot(imu_time, yg, label = 'gyro', color = 'red')
-# axarr[2].plot(imu_time, ya, label = 'acc', color = 'blue')
-# axarr[2].plot(imu_time, yc, label = 'comp', color = 'green')
-# axarr[2].plot(imu_time, ym, label = 'madg', color = 'cyan')
 axarr[2].plot(gt_time, ygt, label = 'vicon', color = 'black')
 axarr[2].plot(imu_time, yuk, label = 'ukf', color = 'pink')
 
