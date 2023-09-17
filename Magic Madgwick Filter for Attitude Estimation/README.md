@@ -9,7 +9,7 @@
 ```bash
 python Wrapper.py
 ```
-5. Analyse the plots and play with filter weights
+5. Analyse the plots and adjust the filter weights to resemble the plot represented by 'VICON'
 6. Uncomment the Last section to visualize the Rotplots.
 
 # Results
