@@ -37,9 +37,9 @@ def convert(imu_vals, imu_params):
         az = acc_conv(row[2],baz,sz)
 
         if calc_bias == 0:
-            bgz = np.mean(imu_vals[:1000, 3])
-            bpx = np.mean(imu_vals[:1000, 4])
-            bpy = np.mean(imu_vals[:1000, 5])
+            bgz = np.mean(imu_vals[:500, 3])
+            bpx = np.mean(imu_vals[:500, 4])
+            bpy = np.mean(imu_vals[:500, 5])
             calc_bias = 1
 
         wz = ang_conv(row[3],bgz)
@@ -281,6 +281,49 @@ Pk = np.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
 Q = np.diag([ 105, 105, 105, 0.5, 0.5, 0.5])
 R = np.diag([ 11.2, 11.2, 11.2, 0.1, 0.1, 0.1])
 
+#########SET 2 DECENT
+# Pk = np.eye(6)
+# Q = np.diag(np.concatenate((100 * np.ones(3), 0.01 * np.ones(3))))
+# R = np.diag(np.concatenate((0.1 * np.ones(3), 1e-2 * np.ones(3))))
+
+# #########SET 3 BAD
+# Pk = np.diag(np.concatenate((np.ones(3), np.ones(3))))
+
+# Q = 5e-8 * np.block([[np.ones((3, 3)) + np.eye(3), np.zeros((3, 3))],
+#                     [np.zeros((3, 3)), np.ones((3, 3)) + np.eye(3)]])
+
+# R = np.block([[2.8e-4 * (np.ones((3, 3)) + np.eye(3)), np.zeros((3, 3))],
+#               [np.zeros((3, 3)), 10e-4 * (np.ones((3, 3)) + np.eye(3))]])
+
+Pk = np.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
+Q = np.diag([ 105, 105, 105, 0.5, 0.5, 0.5])
+R = np.diag([ 11.2, 11.2, 11.2, 0.1, 0.1, 0.1])
+########SET 4 BAD
+# Pk = np.eye(6)
+# Q = np.diag([100.0, 100.0, 100.0, 0.1, 0.1, 0.1])
+# R = np.diag([0.5, 0.5, 0.5, 0.01, 0.01, 0.01])
+
+# ########Set 5 
+# Pk = np.identity(6)*1
+# Q =  np.identity(6)*0.000001
+# R =  np.identity(6)*0.001
+# Pk_values = cfg['Pk']
+# Q_values  = cfg['Q']
+# R_values  = cfg['R']
+
+# Convert the values to NumPy arrays
+# Pk = np.diag(Pk_values)
+# Q = np.diag(Q_values)
+# R = np.diag(R_values)
+
+# print("Pk: \n \n")
+# print(Pk)
+# print("Q: \n \n")
+# print(Q)
+# print("R: \n \n")
+# print(R)
+# exit(0)
+
 for i in range(len(imu_time)):
 
     if i == 0 :
@@ -347,6 +390,7 @@ for i in range(len(imu_time)):
     Y_bar_q, err = intrinsic_gd(sp_trans_time_proj_q, sigma_points_Xi[0]) 
     X_k_bar = np.empty((6,12))
     X_k_bar = np.hstack((quat_norm(Y_bar_q),Y_bar_w))    #x_k_bar
+
     
     Y_mean_centered = []
 
