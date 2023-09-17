@@ -276,9 +276,10 @@ sv.append([1,0,0,0,0,0,0])
 
 n = cfg['filter_params']['ukf_num_ind_var']
 
-Pk = 1e-2 * np.eye(6)
-Q = np.diag(np.concatenate((100 * np.ones(3), 0.1 * np.ones(3))))
-R = np.diag(np.concatenate((0.5 * np.ones(3), 1e-2 * np.ones(3))))
+# ##########SET 1 BAD
+Pk = np.diag([1e-2, 1e-2, 1e-2, 1e-2, 1e-2, 1e-2])
+Q = np.diag([ 110, 110, 110, 0.5, 0.5, 0.5 ])
+R = np.diag([ 11.2, 11.2, 11.2, 0.1, 0.1, 0.1 ])
 
 for i in range(len(imu_time)):
 
@@ -346,7 +347,6 @@ for i in range(len(imu_time)):
     Y_bar_q, err = intrinsic_gd(sp_trans_time_proj_q, sigma_points_Xi[0]) 
     X_k_bar = np.empty((6,12))
     X_k_bar = np.hstack((quat_norm(Y_bar_q),Y_bar_w))    #x_k_bar
-
     
     Y_mean_centered = []
 
@@ -431,16 +431,35 @@ for i in range(len(imu_time)):
 
     sv.append(X_k_bar_hat)
 
+ukfrots = []
+for f in sv:
+    o = quat2euler(f[:4])
+    ukfrots.append(rpy2rotmat(o[0],o[1],o[2]))
+
+
+
 
 fig, axarr = plt.subplots(3, 1)
+# axarr[0].plot(imu_time, rg, label = 'gyro', color = 'red')
+# axarr[0].plot(imu_time, ra, label = 'acc', color = 'blue')
+# axarr[0].plot(imu_time, rc, label = 'comp', color = 'green')
+# axarr[0].plot(imu_time, rm, label = 'madg', color = 'cyan')
 axarr[0].plot(gt_time, rgt, label = 'vicon', color = 'black')
 axarr[0].plot(imu_time, ruk, label = 'ukf', color = 'pink')
 axarr[0].set_title('Time vs Roll')
 
+# axarr[1].plot(imu_time, pg, label = 'gyro', color = 'red')
+# axarr[1].plot(imu_time, pa, label = 'acc', color = 'blue')
+# axarr[1].plot(imu_time, pc, label = 'comp', color = 'green')
+# axarr[1].plot(imu_time, pm, label = 'madg', color = 'cyan')
 axarr[1].plot(gt_time, pgt, label = 'vicon', color = 'black')
 axarr[1].plot(imu_time, puk, label = 'ukf', color = 'pink')
 axarr[1].set_title('Time vs Pitch')
 
+# axarr[2].plot(imu_time, yg, label = 'gyro', color = 'red')
+# axarr[2].plot(imu_time, ya, label = 'acc', color = 'blue')
+# axarr[2].plot(imu_time, yc, label = 'comp', color = 'green')
+# axarr[2].plot(imu_time, ym, label = 'madg', color = 'cyan')
 axarr[2].plot(gt_time, ygt, label = 'vicon', color = 'black')
 axarr[2].plot(imu_time, yuk, label = 'ukf', color = 'pink')
 
@@ -454,29 +473,29 @@ plt.show()
 #Uncomment the code below to visualize the ROTPLOT.#
 ####################################################
 
-# fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-# height, width = 480, 640  # or whatever size you want
-# video = cv2.VideoWriter('my_video.mp4', fourcc, 30, (width, height))
-# matplotlib.use('Agg')
-# for i in range(len(resti)):
-#     myAxis = resti[i]
-#     plt.figure(figsize=(6.4, 4.8))  # Default size, you can adjust
-#     rotplot(myAxis)
-#     plt.draw()
-#     plt.pause(0.01)  # Pause to make sure plot is rendered
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+height, width = 480, 640  # or whatever size you want
+video = cv2.VideoWriter('my_video.mp4', fourcc, 30, (width, height))
+matplotlib.use('Agg')
+for i in range(len(ukfrots)):
+    myAxis = ukfrots[i]
+    plt.figure(figsize=(6.4, 4.8))  # Default size, you can adjust
+    rotplot(myAxis)
+    plt.draw()
+    plt.pause(0.01)  # Pause to make sure plot is rendered
 
-#     # Convert plot to image frame
-#     plt.savefig('temp.png')
-#     frame = cv2.imread('temp.png')
-#     frame = cv2.resize(frame, (width, height))
+    # Convert plot to image frame
+    plt.savefig('temp.png')
+    frame = cv2.imread('temp.png')
+    frame = cv2.resize(frame, (width, height))
     
-#     # Write frame to video
-#     video.write(frame)
+    # Write frame to video
+    video.write(frame)
  
-#     plt.close()
+    plt.close()
 
-# # Close the video file
-# video.release()
+# Close the video file
+video.release()
 
-# # Remove the temporary file
-# os.remove('temp.png')
+# Remove the temporary file
+os.remove('temp.png')
