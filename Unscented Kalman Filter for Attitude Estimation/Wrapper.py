@@ -181,9 +181,9 @@ def madgwick(beta, imu_g):
                            [ 2*q_esti[1],   2*q_esti[0],     2*q_esti[3],   2*q_esti[2]],
                            [ 0,             -4*q_esti[1],   -4*q_esti[2],   0]]).T
         
-        del_f2 = np.array([[2*(q_esti[1] * q_esti[3] - q_esti[0] * q_esti[2]) - imu_a[i][0]],
-                           [2*(q_esti[0] * q_esti[1] + q_esti[2] * q_esti[3]) - imu_a[i][1]],
-                           [2*((1/2)    - q_esti[1]**2           - q_esti[2]**2 )   - imu_a[i][2]]])
+        del_f2 = np.array([[2*(q_esti[1] * q_esti[3]  - q_esti[0] * q_esti[2])       - imu_a[i][0]],
+                           [2*(q_esti[0] * q_esti[1]  + q_esti[2] * q_esti[3])       - imu_a[i][1]],
+                           [2*((1/2)     - q_esti[1]**2           - q_esti[2]**2 )   - imu_a[i][2]]])
 
         del_f = np.squeeze(np.dot(del_f1,del_f2))
         norm_delf = math.sqrt(del_f[0]**2+del_f[1]**2+del_f[2]**2+del_f[3]**2)
@@ -253,8 +253,8 @@ if __name__ == '__main__':
     rg, pg, yg, og, rpyg = gyro(init_rot_mat, imu_timestamps, imu_g)
     ra, pa, ya, oa, rpya = acc(imu_timestamps, imu_a)   
 
-    af = cfg['filter_weight']['low_high']
-    ac = cfg['filter_weight']['complementary']
+    af = cfg['filter_params']['low_high']
+    ac = cfg['filter_params']['complementary']
 
     rc, pc, yc, rpyc = complementary(rg, pg, yg, ra, pa, ya, af, ac)
 
@@ -265,67 +265,59 @@ if __name__ == '__main__':
 
     norm_imu_a, norm_aq, norm_gq = gt2quatconv_norm(rpya, rpyg, imu_a)
 
-    beta = cfg['filter_weight']['madgwick_trust_factor']
+    beta = cfg['filter_params']['madgwick_trust_factor']
 
     rm, pm, ym, rpym = madgwick(beta, imu_g)
-
-    # fig, axarr = plt.subplots(3, 1)
-    # axarr[0].plot(imu_time, rg, label = 'gyro', color = 'red')
-    # axarr[0].plot(imu_time, ra, label = 'acc', color = 'blue')
-    # axarr[0].plot(imu_time, rc, label = 'comp', color = 'green')
-    # axarr[0].plot(imu_time, rm, label = 'madg', color = 'cyan')
-    # axarr[0].plot(gt_time, rgt, label = 'vicon', color = 'black')
-    # axarr[0].set_title('Time vs Roll')
-
-    # axarr[1].plot(imu_time, pg, label = 'gyro', color = 'red')
-    # axarr[1].plot(imu_time, pa, label = 'acc', color = 'blue')
-    # axarr[1].plot(imu_time, pc, label = 'comp', color = 'green')
-    # axarr[1].plot(imu_time, pm, label = 'madg', color = 'cyan')
-    # axarr[1].plot(gt_time, pgt, label = 'vicon', color = 'black')
-    # axarr[1].set_title('Time vs Pitch')
-
-    # axarr[2].plot(imu_time, yg, label = 'gyro', color = 'red')
-    # axarr[2].plot(imu_time, ya, label = 'acc', color = 'blue')
-    # axarr[2].plot(imu_time, yc, label = 'comp', color = 'green')
-    # axarr[2].plot(imu_time, ym, label = 'madg', color = 'cyan')
-    # axarr[2].plot(gt_time, ygt, label = 'vicon', color = 'black')
-    # axarr[2].set_title('Time vs Yaw')
-
-    # plt.tight_layout()
-    # plt.legend()
-    # plt.show()
-#############################################################################################
-
+    ruk, puk, yuk = [], [], []
 
 sv = []
 
 sv.append([1,0,0,0,0,0,0])
 
-n = 6
+n = cfg['filter_params']['ukf_num_ind_var']
 
-# Pk = np.eye(6)
-# # P = np.eye(6)
-
-# # Create Q, the process noise covariance matrix
-# Q = 0.5 * np.block([[np.ones((3, 3)) + np.eye(3), np.zeros((3, 3))],
-#                      [np.zeros((3, 3)), np.ones((3, 3)) + np.eye(3)]])
-
-Q = np.diag([75.0, 100.0, 100.0, 0.1, 0.1, 0.1])
-
-# # R = 0.5*(np.eye(6))
-R = np.diag([0.5, 0.5, 0.5, 0.01, 0.01, 0.01])
-
-Pk = np.diag([82e-4, 82e-4, 82e-4, 33e-2, 33e-2, 4e-1])
+##########SET 1 BAD
+# Pk = np.diag([82e-4, 82e-4, 82e-4, 33e-2, 33e-2, 4e-1])
 # Q = np.diag([ 82e-4, 82e-4, 82e-4, 33e-2, 33e-2, 4e-1 ])
 # R = np.diag([ 75e-1, 75e-1, 75e-1, 45e-1, 45e-1, 47e-1 ])
 
-# def find_sigma_pts():
-sigma_points_Xi = []
-ruk, puk, yuk = [], [], []
+#########SET 2 DECENT
+Pk = 1e-2 * np.eye(6)
+Q = np.diag(np.concatenate((100 * np.ones(3), 0.1 * np.ones(3))))
+R = np.diag(np.concatenate((0.5 * np.ones(3), 1e-2 * np.ones(3))))
+
+#########SET 3 BAD
+# Pk = np.diag(np.concatenate((np.ones(3), np.ones(3))))
+# Q = 5e-8 * np.block([[np.ones((3, 3)) + np.eye(3), np.zeros((3, 3))],
+#                     [np.zeros((3, 3)), np.ones((3, 3)) + np.eye(3)]])
+# R = np.block([[2.8e-4 * (np.ones((3, 3)) + np.eye(3)), np.zeros((3, 3))],
+#               [np.zeros((3, 3)), 10e-4 * (np.ones((3, 3)) + np.eye(3))]])
+
+
+########SET 4 BAD
+# Pk = np.eye(6)
+# Q = np.diag([100.0, 100.0, 100.0, 0.1, 0.1, 0.1])
+# R = np.diag([0.5, 0.5, 0.5, 0.01, 0.01, 0.01])
+
+# Pk_values = cfg['Pk']
+# Q_values  = cfg['Q']
+# R_values  = cfg['R']
+
+# Convert the values to NumPy arrays
+# Pk = np.diag(Pk_values)
+# Q = np.diag(Q_values)
+# R = np.diag(R_values)
+
+# print("Pk: \n \n")
+# print(Pk)
+# print("Q: \n \n")
+# print(Q)
+# print("R: \n \n")
+# print(R)
+# exit(0)
 
 for i in range(len(imu_time)):
-    # print(i)  
-    # print("thissssssssssssssssssssssssss,",imu_time[i-1])
+
     if i == 0 :
         dt = 0.01
     else:
@@ -339,10 +331,8 @@ for i in range(len(imu_time)):
     root2S = S * math.sqrt(n) # Can take 6 for numerical stability
     # np.random.seed(42)
      
-    W = np.hstack((-root2S, root2S)) #W_dash
+    W = np.transpose(np.hstack((-root2S, root2S))) #W_dash
 
-    
-    W = W.T
     sigma_points_Xi = []
     sigma_points_trans_q = []
     sigma_points_trans_w = []
@@ -368,22 +358,25 @@ for i in range(len(imu_time)):
         
         sigma_points_Xi.append(noisy_sv)
 
-    sp_trans_time_proj_w = np.empty((12,3))       #Y_i
-    sp_trans_time_proj_q = np.empty((12,4))
+    sp_trans_time_proj_w = [] #np.empty((12,3))       #Y_i
+    sp_trans_time_proj_q = [] #np.empty((12,4))
 
     #Get projected sigma points in the next time stamp x_cap_k using the noisy sigma points 
 
     for k in sigma_points_Xi:
 
         delta_sigma_quat = omega_vec2quat(k[4:], dt)
+
         proj_mult_quat = quat_norm(quat_mult(quat_norm(k[:4]), quat_norm(delta_sigma_quat)))
-        proj_sigma_Y = [proj_mult_quat[0],proj_mult_quat[1],proj_mult_quat[2],proj_mult_quat[3], k[4], k[5], k[6]]
+        proj_sigma_Y = [proj_mult_quat[0], proj_mult_quat[1], proj_mult_quat[2], proj_mult_quat[3], k[4], k[5], k[6]]
+
         sigmaptsY.append(proj_sigma_Y)
-        np.append(sp_trans_time_proj_q, proj_mult_quat)
-        np.append(sp_trans_time_proj_w, k[4:])
-    
+
+        sp_trans_time_proj_q.append(proj_mult_quat)
+        sp_trans_time_proj_w.append(k[4:])
+
     sigma_pts_Y = np.transpose(np.array(sigmaptsY))
-    
+
     #Get average of projected sigma points x_bar
     Y_bar_w = np.mean(sp_trans_time_proj_w, axis = 0)
     Y_bar_q, err = intrinsic_gd(sp_trans_time_proj_q, sigma_points_Xi[0]) 
@@ -450,12 +443,6 @@ for i in range(len(imu_time)):
     err = np.array(err)
     Vk = np.array(zk - Z_k_bar)   #Innovation : Zi - Z_mean
 
-    # for spti in sigma_points_Xi:
-    #     #print("Im here at 6......")
-    #     ycm = quat_norm(quat_mult(quat_norm(quat_inv(X_k_bar[:4])), quat_norm(spti[:4])))
-    #     ycmm = [ycm[a] - spti[a] for a in range(len(ycm))]
-    #     y_centered_mean = [ycm[0], ycm[1], ycm[2], ycm[3], ycmm[0], ycmm[1], ycmm[2]]
-
     Pzz =  np.dot(Z_mean_center,Z_mean_center.T)/(12)
 
     Pvv = Pzz + R
@@ -471,13 +458,6 @@ for i in range(len(imu_time)):
     X_k_bar_hat = np.hstack((qpart, (X_k_bar_hat[4:] + k_gain[3:])))
 
     Pk = P_k_bar - K_k @ (Pvv @ K_k.T)
-
-    # if i <2:
-    #     print("\n\n\\n\n",P_k_bar )
-        
-    # else:
-    #     exit(0)
-
 
     angles_new_estimate = quat2euler(X_k_bar_hat[:4])
 
