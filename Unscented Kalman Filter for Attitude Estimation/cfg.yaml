@@ -1,6 +1,6 @@
 imu:
   main_path: "~/Desktop/YourDirectoryID_p0/Phase1/Data/Train/IMU"
-  file_name: "imuRaw1.mat"
+  file_name: "imuRaw3.mat"
 
 params:
   main_path: "~/Desktop/YourDirectoryID_p0/Phase1/"
@@ -8,9 +8,35 @@ params:
 
 vicon:
   main_path: "~/Desktop/YourDirectoryID_p0/Phase1/Data/Train/Vicon" 
-  file_name: "viconRot1.mat"
+  file_name: "viconRot3.mat"
 
-filter_weight:
+filter_params:
   low_high: 0.2
   complementary: 0.6
   madgwick_trust_factor: 0.6 
+  ukf_num_ind_var: 6
+
+
+# Pk:
+#   - 82e-4
+#   - 82e-4
+#   - 82e-4
+#   - 33e-2
+#   - 33e-2
+#   - 4e-1
+
+# Q:
+#   - 82e-4
+#   - 82e-4
+#   - 82e-4
+#   - 33e-2
+#   - 33e-2
+#   - 4e-1
+
+# R:
+#   - 75e-1
+#   - 75e-1
+#   - 75e-1
+#   - 45e-1
+#   - 45e-1
+#   - 47e-1
