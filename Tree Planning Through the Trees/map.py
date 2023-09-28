@@ -96,6 +96,47 @@ goal_location = (24, 16, 3)
 create_sphere(goal_location, 0, 255, 0)
 goal = Node(goal_location[0], goal_location[1], goal_location[2])
 
+from mathutils import Vector
+
+def visualize_path(vertices, sphere_radius=0.1, cylinder_radius=0.05):
+
+    
+    # Deselect all objects in the scene
+    bpy.ops.object.select_all(action='DESELECT')
+
+    # Clear existing mesh objects
+    bpy.ops.object.select_by_type(type='MESH')
+    bpy.ops.object.delete()
+
+    # creating spheres for nodes
+    spheres = []
+    for i, node in enumerate(vertices):
+        node_curr = (node.row,node.col,node.tub)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=sphere_radius, location=node_curr)
+        sphere = bpy.context.object
+        sphere.name = f"Node_{i}"
+        spheres.append(sphere)
+
+    # creating cylinders to connect adjacent nodes
+    for i in range(len(spheres) - 1):
+        node1 = spheres[i]
+        node2 = spheres[i + 1]
+        midpoint = ((node1.location.x + node2.location.x) / 2, 
+                    (node1.location.y + node2.location.y) / 2, 
+                    (node1.location.z + node2.location.z) / 2)
+        direction = node2.location - node1.location
+        distance = direction.length # .length calculates magnitude of vector
+
+        bpy.ops.mesh.primitive_cylinder_add(radius=cylinder_radius, depth=distance, location=midpoint)
+        cylinder = bpy.context.object
+
+        rot_quat = direction.to_track_quat('Z', 'Y')
+        cylinder.rotation_euler = rot_quat.to_euler()
+        cylinder.name = f"PathEdge_{i}"
+
+#nodes = [(5, 16, 3), (10, 26, 13)]
+
+#visualize_path(nodes)
 
 def dis(point1, point2):
     return math.sqrt(((point1.row - point2.row)**2) + ((point1.col - point2.col)**2) + ((point1.tub - point2.tub)**2)) 
@@ -107,7 +148,7 @@ def get_random_point(xmin, xmax, ymin, ymax, zmin, zmax, goal_bias):
     ynew = np.random.randint(ymin, ymax)
     znew = np.random.randint(zmin, zmax)
     if np.random.uniform(0,1) > goal_bias:
-            return (xnew,ynew,znew)
+            return (xnew, ynew, znew)
     
     else:
         return goal_location
@@ -178,15 +219,15 @@ def check_valid(point):
 def check_point_obs(obstacles, point):
 
     for j in obstacles:
-        if (point[0] > j[0] or point[1] < j[3]) and (point[1] > j[1] or point[1] < j[4]) and (point[2] > j[2] or point[2] < j[5]):
+        if (point[0] > j[0] or point[1] < j[3]) or (point[1] > j[1] or point[1] < j[4]) or (point[2] > j[2] or point[2] < j[5]):
             return True
 
 
-def check_node_obs(obstacles, point):
+# def check_node_obs(obstacles, point):
 
-    for j in obstacles:
-        if (point.row > j[0] or point.col < j[3]) and (point.col > j[1] or point.col < j[4]) and (point.tub > j[2] or point.tub < j[5]):
-            return True
+#     for j in obstacles:
+        # if (point.row > j[0] or point.col < j[3]) or (point.col > j[1] or point.col < j[4]) or (point.tub > j[2] or point.tub < j[5]):
+            # return True
         
 
 def check_collision(obstacles, nn, new_node):
@@ -204,18 +245,9 @@ def check_collision(obstacles, nn, new_node):
 
     for i in range(check):
         #check if the point is an obstacle
-        # print(obstacles)
-        # print("#####################")
-        # print(len(obstacles))
-        # print("#####################")
-        # print(xpt, ypt, zpt)
-        # exit(0)
-        # p = (0, 0, 0)
-        # p[0] = xpt
-        # p[1] = ypt
-        # p[2] = zpt
 
-        if check_point_obs(obstacles, (xpt, ypt, zpt)) == 0:
+
+        if check_point_obs(obstacles, (xpt, ypt, zpt)):
             return False
                 
         #incrementing x and y 
@@ -243,7 +275,7 @@ def rewire(new_node, neighbors, obstacles):
         min_cost, min_cost_neighbor = heapq.heappop(neighbor_heap)
 
         #check for the collision of the node
-        if check_collision(obstacles, min_cost_neighbor, new_node) == True:
+        if check_collision(obstacles, min_cost_neighbor, new_node):
 
             new_node.cost = min_cost
             new_node.parent = min_cost_neighbor 
@@ -252,11 +284,10 @@ def rewire(new_node, neighbors, obstacles):
 
     # Rewire the remaining neighbors
     while neighbor_heap:
-
         cost, neighbor = heapq.heappop(neighbor_heap)
         potential_cost = new_node.cost + dis(new_node, neighbor) 
         
-        if neighbor.cost > potential_cost and check_collision(neighbor, new_node) == True:
+        if neighbor.cost > potential_cost and check_collision(neighbor, new_node):
 
             neighbor.parent = new_node
             neighbor.cost = potential_cost
@@ -267,42 +298,34 @@ def rewire(new_node, neighbors, obstacles):
 start_cost = 0
 ext_step = 15
 goal_bias = 0.075
-step_size = bxmax - bxmin
+step_size = 1
 found = False
 neighbor_size = 10
 
 for i in range(1000):
+    # print("Im on the ith iteration", i )
     
-    point = get_random_point(bxmin, bxmax, bymin, bymax, bzmin, bzmax, goal_bias)
-    # point_node = Node(point[0], point[1], point[2])
-    
-    #if there is an obstacle end the loop to get another point 
-    if check_point_obs(obstacles, point):
-        continue           
+    new_point = get_random_point(bxmin, bxmax, bymin, bymax, bzmin, bzmax, goal_bias)
+    # print("This is the current p:", point)
 
-    point = Node(point[0], point[1], point[2])
+    new_point = Node(new_point[0], new_point[1], new_point[2])
 
     #Generating Neighbours
-    nn = get_nearest_node(vertices, point)
-    dir1, dir2 = get_direction(point,nn)
-    newpoint = generate_directed_point(nn, dir1, dir2, step_size)
+    near_vertex = get_nearest_node(vertices, new_point)
+    dir1, dir2 = get_direction(new_point,near_vertex)
+    newpoint = generate_directed_point(near_vertex, dir1, dir2, step_size)
     newpoint = check_valid(newpoint)
-    
-    if check_node_obs(obstacles, newpoint):
-        continue           
+    dissn = dis(newpoint, near_vertex)
 
-    # newpoint = Node(newpoint[0], newpoint[1], newpoint[2])
-    dissn = dis(newpoint, nn)
-
-    if check_collision(obstacles, nn, newpoint):
-        newpoint.parent = nn
-        newpoint.cost = nn.cost + dis(newpoint, nn)
-
+    if check_collision(obstacles, near_vertex, newpoint):
+        newpoint.parent = near_vertex
+        newpoint.cost = near_vertex.cost + dis(newpoint, near_vertex)
+        
         neighbors = get_neighbors(newpoint, neighbor_size)
+
         if len(neighbors) == 0:
             continue
 
-        # neighbors = rewire(newpt, neighbors)
         rewire(newpoint, neighbors, obstacles)
         vertices.append(newpoint)
 
@@ -310,16 +333,18 @@ for i in range(1000):
         continue
     
     dgoal = dis(newpoint, goal)
-
+  
     if dgoal < 8:
-
+        print("hewdficheowscchncodieciochsdhcnochjniewshjcdcjo")
+        print("\n\n\n\n\n\n\n\n I maybe the goal \n\n\n\n\n\n")
         found = True
         goal.parent = newpoint
-        disg = dis(nn, newpoint)
+        disg = dis(near_vertex, newpoint)
         goal.cost = newpoint.cost + dgoal
         new_neighbors = get_neighbors(goal, neighbor_size)
 
         if len(new_neighbors) == 0:
+            print("len of negh is 0 - 2")
             continue
 
         rewire(goal, new_neighbors, obstacles)
@@ -328,16 +353,21 @@ for i in range(1000):
     else:
         print("Still finding")
         continue
-
-    if found:
+    
+    
+if found:
+        
+        steps = len(vertices) - 2
+        length = goal.cost
+        print("It took %d nodes to find the current path" %steps)
+        print("The path length is %.2f" %length)
+        visualize_path(vertices)
+        nodes = []
+        for v in vertices:
+            nodes.append((v.col,v.row,v.tub))
             
-            steps = len(vertices) - 2
-            length = goal.cost
-            print("It took %d nodes to find the current path" %steps)
-            print("The path length is %.2f" %length)
-
-    else:
-        print("No path found")
+else:
+    print("No path found")
 
 
 
