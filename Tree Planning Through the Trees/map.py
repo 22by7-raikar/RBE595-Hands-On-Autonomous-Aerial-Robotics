@@ -3,6 +3,7 @@ import heapq
 import numpy as np
 import math
 import random
+import matplotlib.pyplot as plt
 
 class Node:
     def __init__(self, row, col, tub):
@@ -90,49 +91,46 @@ start_location = (5, 16, 3)
 create_sphere(start_location, 255, 0, 0)
 start = Node(start_location[0], start_location[1], start_location[2])
 
-vertices = []
-vertices.append(start)
-
 goal_location = (24, 16, 3)
 create_sphere(goal_location, 0, 255, 0)
 goal = Node(goal_location[0], goal_location[1], goal_location[2])
 
 from mathutils import Vector
 
-# def visualize_path(vertices, sphere_radius=0.1, cylinder_radius=0.05):
+def visualize_path(vertices, sphere_radius=0.1, cylinder_radius=0.05):
     
-#     # Deselect all objects in the scene
-#     bpy.ops.object.select_all(action='DESELECT')
+    # Deselect all objects in the scene
+    bpy.ops.object.select_all(action='DESELECT')
 
-#     # Clear existing mesh objects
-#     bpy.ops.object.select_by_type(type='MESH')
-#     bpy.ops.object.delete()
+    # Clear existing mesh objects
+    bpy.ops.object.select_by_type(type='MESH')
+    bpy.ops.object.delete()
 
-#     # creating spheres for nodes
-#     spheres = []
-#     for i, node in enumerate(vertices):
-#         node_curr = (node.row,node.col,node.tub)
-#         bpy.ops.mesh.primitive_uv_sphere_add(radius=sphere_radius, location=node_curr)
-#         sphere = bpy.context.object
-#         sphere.name = f"Node_{i}"
-#         spheres.append(sphere)
+    # creating spheres for nodes
+    spheres = []
+    for i, node in enumerate(vertices):
+        node_curr = (node.row,node.col,node.tub)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=sphere_radius, location=node_curr)
+        sphere = bpy.context.object
+        sphere.name = f"Node_{i}"
+        spheres.append(sphere)
 
-#     # creating cylinders to connect adjacent nodes
-#     for i in range(len(spheres) - 1):
-#         node1 = spheres[i]
-#         node2 = spheres[i + 1]
-#         midpoint = ((node1.location.x + node2.location.x) / 2, 
-#                     (node1.location.y + node2.location.y) / 2, 
-#                     (node1.location.z + node2.location.z) / 2)
-#         direction = node2.location - node1.location
-#         distance = direction.length # .length calculates magnitude of vector
+    # creating cylinders to connect adjacent nodes
+    for i in range(len(spheres) - 1):
+        node1 = spheres[i]
+        node2 = spheres[i + 1]
+        midpoint = ((node1.location.x + node2.location.x) / 2, 
+                    (node1.location.y + node2.location.y) / 2, 
+                    (node1.location.z + node2.location.z) / 2)
+        direction = node2.location - node1.location
+        distance = direction.length # .length calculates magnitude of vector
 
-#         bpy.ops.mesh.primitive_cylinder_add(radius=cylinder_radius, depth=distance, location=midpoint)
-#         cylinder = bpy.context.object
+        bpy.ops.mesh.primitive_cylinder_add(radius=cylinder_radius, depth=distance, location=midpoint)
+        cylinder = bpy.context.object
 
-#         rot_quat = direction.to_track_quat('Z', 'Y')
-#         cylinder.rotation_euler = rot_quat.to_euler()
-#         cylinder.name = f"PathEdge_{i}"
+        rot_quat = direction.to_track_quat('Z', 'Y')
+        cylinder.rotation_euler = rot_quat.to_euler()
+        cylinder.name = f"PathEdge_{i}"
 
 #nodes = [(5, 16, 3), (10, 26, 13)]
 
@@ -144,13 +142,9 @@ def dis(point1, point2):
 
 def get_new_random_point(xmin, xmax, ymin, ymax, zmin, zmax, goal_bias):
     
-    np.random.seed(42)    
     xnew = np.random.randint(xmin, xmax)
     ynew = np.random.randint(ymin, ymax)
     znew = np.random.randint(zmin, zmax)
-    # xnew = xmin + ((xmax - xmin) * (random.random(xmin, xmax)))
-    # ynew = ymin + ((ymax - ymin) * (random.random(ymin, ymax)))
-    # znew = zmin + ((zmax - zmin) * (random.random(zmin, zmax)))
 
     if np.random.uniform(0,1) > goal_bias:
         return (xnew, ynew, znew)
@@ -165,7 +159,6 @@ def get_nearest_node(vertices, point):
 
     for i in vertices:
         #finding the distance 
-        # d = math.sqrt(math.pow(i.row-point[0],2)+math.pow(i.col-point[1],2))
         d = dis(point, i) 
         #pushing the node in the queue based on the distance
         heapq.heappush(distance, (d,i))
@@ -224,16 +217,11 @@ def check_valid(point):
 def check_point_obs(obstacles, point):
 
     for j in obstacles:
-        if (point[0] > j[0] and point[1] < j[3]) and (point[1] > j[1] and point[1] < j[4]) and (point[2] > j[2] and point[2] < j[5]):
+        if (j[0] < point[0] < j[3]) and (j[1] < point[1] < j[4]) and (j[2] < point[2] < j[5]):
             return True
-
-
-# def check_node_obs(obstacles, point):
-
-#     for j in obstacles:
-        # if (point.row > j[0] or point.col < j[3]) or (point.col > j[1] or point.col < j[4]) or (point.tub > j[2] or point.tub < j[5]):
-            # return True
         
+    return False
+
 
 def check_collision(obstacles, nn, new_node):
     
@@ -251,7 +239,7 @@ def check_collision(obstacles, nn, new_node):
     for i in range(check):
         #check if the point is an obstacle
 
-        if check_point_obs(obstacles, (xpt, ypt, zpt)):
+        if  check_point_obs(obstacles, (xpt, ypt, zpt)):
             return False
                 
         #incrementing x and y 
@@ -300,39 +288,54 @@ def rewire(new_node, neighbors, obstacles):
 
 start_cost = 0
 ext_step = 15
-goal_bias = 0.75
+goal_bias = 0.075
 step_size = 1
 found = False
-neighbor_size = 10
+neighbor_size = 1
+max_dist = 1
+
+vertices = []
+vertices.append(start)
 
 for i in range(1000):
     # print("Im on the ith iteration", i )
     
     new_point = get_new_random_point(bxmin, bxmax, bymin, bymax, bzmin, bzmax, goal_bias)
-    # print("This is the current p:", point)
-
     new_point = Node(new_point[0], new_point[1], new_point[2])
 
-    #Generating Neighbours
     near_vertex = get_nearest_node(vertices, new_point)
-    dir1, dir2 = get_direction(new_point,near_vertex)
+    
+    if dis(near_vertex,new_point)<= max_dist and new_point.row != goal.row and new_point.col != goal.col and new_point.tub != goal.tub:
+        newpoint = new_point
 
-    newpoint = generate_directed_point(near_vertex, dir1, dir2, step_size)
+    else:
+        dir1, dir2 = get_direction(new_point,near_vertex)
+        newpoint = generate_directed_point(near_vertex, dir1, dir2, step_size) 
+    
     newpoint = check_valid(newpoint)
 
-    dissn = dis(newpoint, near_vertex)
+    #dissn = dis(newpoint, near_vertex)
 
     if check_collision(obstacles, near_vertex, newpoint):
-        newpoint.parent = near_vertex
-        newpoint.cost = near_vertex.cost + dis(newpoint, near_vertex)
-        
+        new_parent = near_vertex
+        new_cost = near_vertex.cost + dis(newpoint, near_vertex)
+
         neighbors = get_neighbors(newpoint, neighbor_size)
 
         if len(neighbors) == 0:
             continue
 
+        for n in neighbors:
+            if check_collision(obstacles,newpoint,n) and n.cost+dis(n,newpoint) < new_cost:
+                new_parent = n
+                new_cost = n.cost+dis(n,newpoint)
+        
+        newpoint.parent = new_parent
+        newpoint.cost = new_cost
+        
         rewire(newpoint, neighbors, obstacles)
         vertices.append(newpoint)
+        print("Im getting appended:",newpoint.row,newpoint.col,newpoint.tub)
 
     else:
         continue
@@ -340,8 +343,6 @@ for i in range(1000):
     dgoal = dis(newpoint, goal)
   
     if dgoal < 10:
-        print("hewdficheowscchncodieciochsdhcnochjniewshjcdcjo")
-        print("\n\n\n\n\n\n\n\n I maybe the goal \n\n\n\n\n\n")
         found = True
         goal.parent = newpoint
         disg = dis(near_vertex, newpoint)
@@ -366,14 +367,38 @@ if found:
         length = goal.cost
         print("It took %d nodes to find the current path" %steps)
         print("The path length is %.2f" %length)
-        # visualize_path(vertices)
+        #visualize_path(vertices)
 
         nodes = []
         for v in vertices:
-            nodes.append((v.col,v.row,v.tub))
+            nodes.append((v.row,v.col,v.tub))
+            #print("\n", v.row,v.col,v.tub,"\n")
             
 else:
     print("No path found")
+    
+
+fig = plt.figure()
+
+# create 3d axis on the figure
+ax = fig.add_subplot(111, projection='3d')
+
+x = [pt[0] for pt in nodes]
+y = [pt[1] for pt in nodes]
+z = [pt[2] for pt in nodes]
+
+# scatter plot
+ax.scatter(x, y, z)
+
+# set axis labels
+ax.set_xlabel('X Label')
+ax.set_ylabel('Y Label')
+ax.set_zlabel('Z Label')
+
+# display the plot
+
+
+plt.savefig('/home/ankush/Desktop/plot2.png')
 
 
 
