@@ -104,7 +104,7 @@ def visualize_path(vertices, sphere_radius=0.1, cylinder_radius=0.05):
 
     # Clear existing mesh objects
     bpy.ops.object.select_by_type(type='MESH')
-    bpy.ops.object.delete()
+    #bpy.ops.object.delete()
 
     # creating spheres for nodes
     spheres = []
@@ -290,16 +290,16 @@ def rewire(new_node, neighbors, obstacles):
 
 start_cost = 0
 ext_step = 15
-goal_bias = 0.1    #0.075
+goal_bias = .075
 step_size = 1
 found = False
-neighbor_size = 20 #10
-max_dist = 0.5     #1
+neighbor_size = 10 #10
+max_dist = 1     #1
 
 vertices = []
 vertices.append(start)
 
-for i in range(1000):
+for i in range(1000): #1000
     # print("Im on the ith iteration", i )
     
     new_point = get_new_random_point(bxmin, bxmax, bymin, bymax, bzmin, bzmax, goal_bias)
@@ -400,7 +400,4 @@ ax.set_zlabel('Z Label')
 # display the plot
 
 
-plt.savefig('/home/ankush/Desktop/plot2.png')
-
-
-
+plt.savefig('/home/ankush/Desktop/plot3.png')
