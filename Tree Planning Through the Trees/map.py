@@ -91,7 +91,7 @@ start_location = (5, 16, 3)
 create_sphere(start_location, 255, 0, 0)
 start = Node(start_location[0], start_location[1], start_location[2])
 
-goal_location = (24, 16, 3)
+goal_location = (24, 15, 5)
 create_sphere(goal_location, 0, 255, 0)
 goal = Node(goal_location[0], goal_location[1], goal_location[2])
 
@@ -131,6 +131,8 @@ def visualize_path(vertices, sphere_radius=0.1, cylinder_radius=0.05):
         rot_quat = direction.to_track_quat('Z', 'Y')
         cylinder.rotation_euler = rot_quat.to_euler()
         cylinder.name = f"PathEdge_{i}"
+        
+    print("Visualization Completed")
 
 #nodes = [(5, 16, 3), (10, 26, 13)]
 
@@ -288,11 +290,11 @@ def rewire(new_node, neighbors, obstacles):
 
 start_cost = 0
 ext_step = 15
-goal_bias = 0.075
+goal_bias = 0.1    #0.075
 step_size = 1
 found = False
-neighbor_size = 1
-max_dist = 1
+neighbor_size = 20 #10
+max_dist = 0.5     #1
 
 vertices = []
 vertices.append(start)
@@ -367,7 +369,7 @@ if found:
         length = goal.cost
         print("It took %d nodes to find the current path" %steps)
         print("The path length is %.2f" %length)
-        #visualize_path(vertices)
+        visualize_path(vertices)
 
         nodes = []
         for v in vertices:
@@ -399,7 +401,6 @@ ax.set_zlabel('Z Label')
 
 
 plt.savefig('/home/ankush/Desktop/plot2.png')
-
 
 
 
