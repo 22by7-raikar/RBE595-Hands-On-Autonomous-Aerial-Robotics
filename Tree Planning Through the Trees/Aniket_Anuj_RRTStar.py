@@ -76,7 +76,7 @@ with open(map_file) as file:
 start_coord = [5,16,3]
 create_sphere(start_coord, 255, 0, 0)
 
-goal_coord = (24, 15, 5)
+goal_coord = [24, 15, 5]
 create_sphere(goal_coord, 0, 255, 0)
 
 
