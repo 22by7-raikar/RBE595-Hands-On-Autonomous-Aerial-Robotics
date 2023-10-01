@@ -3,6 +3,8 @@ import heapq
 import numpy as np
 import math
 import random
+import matplotlib.pyplot as plt
+from visualize import *
 
 class Node:
     def __init__(self, row, col, tub):
@@ -37,7 +39,42 @@ def create_sphere(location, r, g, b):
     material = bpy.data.materials.new(name="SphereMaterial")
     sphere.data.materials.append(material)
     material.diffuse_color = (r / 255, g / 255, b / 255, 1)
+def visualize_path(vertices, sphere_radius=0.1, cylinder_radius=0.05):
+    
+    # Deselect all objects in the scene
+    bpy.ops.object.select_all(action='DESELECT')
 
+    # Clear existing mesh objects
+    bpy.ops.object.select_by_type(type='MESH')
+    #bpy.ops.object.delete()
+
+    # creating spheres for nodes
+    spheres = []
+    for i, node in enumerate(vertices):
+        node_curr = (node.row,node.col,node.tub)
+        bpy.ops.mesh.primitive_uv_sphere_add(radius=sphere_radius, location=node_curr)
+        sphere = bpy.context.object
+        sphere.name = f"Node_{i}"
+        spheres.append(sphere)
+
+    # creating cylinders to connect adjacent nodes
+    for i in range(len(spheres) - 1):
+        node1 = spheres[i]
+        node2 = spheres[i + 1]
+        midpoint = ((node1.location.x + node2.location.x) / 2, 
+                    (node1.location.y + node2.location.y) / 2, 
+                    (node1.location.z + node2.location.z) / 2)
+        direction = node2.location - node1.location
+        distance = direction.length # .length calculates magnitude of vector
+
+        bpy.ops.mesh.primitive_cylinder_add(radius=cylinder_radius, depth=distance, location=midpoint)
+        cylinder = bpy.context.object
+
+        rot_quat = direction.to_track_quat('Z', 'Y')
+        cylinder.rotation_euler = rot_quat.to_euler()
+        cylinder.name = f"PathEdge_{i}"
+        
+    print("Visualization Completed")
 def create_boundary(xmin, ymin, zmin, xmax, ymax, zmax, transparency):
 
     bpy.ops.mesh.primitive_cube_add(scale=(xmax-xmin, ymax-ymin, zmax-zmin))
@@ -85,55 +122,16 @@ with open(map_file) as file:
                 create_boundary(xmin, ymin, zmin, xmax, ymax, zmax, transparency)
 
 
-
 start_location = (5, 16, 3)
 create_sphere(start_location, 255, 0, 0)
 start = Node(start_location[0], start_location[1], start_location[2])
 
-goal_location = (24, 16, 3)
+goal_location = (24, 15, 5)
 create_sphere(goal_location, 0, 255, 0)
 goal = Node(goal_location[0], goal_location[1], goal_location[2])
 
 from mathutils import Vector
 
-def visualize_path(vertices, sphere_radius=0.1, cylinder_radius=0.05):
-    
-    # Deselect all objects in the scene
-    bpy.ops.object.select_all(action='DESELECT')
-
-    # Clear existing mesh objects
-    bpy.ops.object.select_by_type(type='MESH')
-    bpy.ops.object.delete()
-
-    # creating spheres for nodes
-    spheres = []
-    for i, node in enumerate(vertices):
-        node_curr = (node.row,node.col,node.tub)
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=sphere_radius, location=node_curr)
-        sphere = bpy.context.object
-        sphere.name = f"Node_{i}"
-        spheres.append(sphere)
-
-    # creating cylinders to connect adjacent nodes
-    for i in range(len(spheres) - 1):
-        node1 = spheres[i]
-        node2 = spheres[i + 1]
-        midpoint = ((node1.location.x + node2.location.x) / 2, 
-                    (node1.location.y + node2.location.y) / 2, 
-                    (node1.location.z + node2.location.z) / 2)
-        direction = node2.location - node1.location
-        distance = direction.length # .length calculates magnitude of vector
-
-        bpy.ops.mesh.primitive_cylinder_add(radius=cylinder_radius, depth=distance, location=midpoint)
-        cylinder = bpy.context.object
-
-        rot_quat = direction.to_track_quat('Z', 'Y')
-        cylinder.rotation_euler = rot_quat.to_euler()
-        cylinder.name = f"PathEdge_{i}"
-
-#nodes = [(5, 16, 3), (10, 26, 13)]
-
-#visualize_path(nodes)
 
 def dis(point1, point2):
     return math.sqrt(((point1.row - point2.row)**2) + ((point1.col - point2.col)**2) + ((point1.tub - point2.tub)**2)) 
@@ -190,8 +188,8 @@ def generate_directed_point(negh,ang1,ang2,step_size):
     return negh
 
 
-def check_valid(point):
-
+def adjust_to_boundary(point):
+    
     if point.row >= bxmax:
         point.row = bxmax-1
 
@@ -277,7 +275,7 @@ def rewire(new_node, neighbors, obstacles):
         _, neighbor = heapq.heappop(neighbor_heap)
         potential_cost = new_node.cost + dis(new_node, neighbor) 
         
-        if neighbor.cost > potential_cost and check_collision(neighbor, new_node):
+        if neighbor.cost > potential_cost and check_collision(obstacles, neighbor, new_node):
 
             neighbor.parent = new_node
             neighbor.cost = potential_cost
@@ -290,13 +288,14 @@ ext_step = 15
 goal_bias = 0.075
 step_size = 1
 found = False
-neighbor_size = 1
-max_dist = 1
+neighbor_size = 10 #10
+max_dist = 1     #1
+goal_dist = 10
 
 vertices = []
 vertices.append(start)
 
-for i in range(1000):
+for i in range(1000): #1000
     # print("Im on the ith iteration", i )
     
     new_point = get_new_random_point(bxmin, bxmax, bymin, bymax, bzmin, bzmax, goal_bias)
@@ -311,7 +310,7 @@ for i in range(1000):
         dir1, dir2 = get_direction(new_point,near_vertex)
         newpoint = generate_directed_point(near_vertex, dir1, dir2, step_size) 
     
-    newpoint = check_valid(newpoint)
+    newpoint = adjust_to_boundary(newpoint)
 
     #dissn = dis(newpoint, near_vertex)
 
@@ -320,58 +319,51 @@ for i in range(1000):
         new_cost = near_vertex.cost + dis(newpoint, near_vertex)
 
         neighbors = get_neighbors(newpoint, neighbor_size)
+        if neighbors:
+            for n in neighbors:
+                distance = dis(n, newpoint) # Avoided repeated calculations
+                if check_collision(obstacles,newpoint,n) and n.cost + distance < new_cost:
+                    new_parent = n
+                    new_cost = n.cost + distance
+            
+            newpoint.parent = new_parent
+            newpoint.cost = new_cost
+            
+            rewire(newpoint, neighbors, obstacles)
+            vertices.append(newpoint)
+            print("Im getting appended:",newpoint.row,newpoint.col,newpoint.tub)
 
-        if len(neighbors) == 0:
-            continue
-
-        for n in neighbors:
-            if check_collision(obstacles,newpoint,n) and n.cost+dis(n,newpoint) < new_cost:
-                new_parent = n
-                new_cost = n.cost+dis(n,newpoint)
-        
-        newpoint.parent = new_parent
-        newpoint.cost = new_cost
-        
-        rewire(newpoint, neighbors, obstacles)
-        vertices.append(newpoint)
-        print("Im getting appended:",newpoint.row,newpoint.col,newpoint.tub)
-
-    else:
-        continue
+        else:
+            print("Still finding")
     
     dgoal = dis(newpoint, goal)
-  
-    if dgoal < 10:
+
+    if dgoal < goal_dist:
         found = True
         goal.parent = newpoint
         disg = dis(near_vertex, newpoint)
         goal.cost = newpoint.cost + disg
         new_neighbors = get_neighbors(goal, neighbor_size)
 
-        if len(new_neighbors) == 0:
-            print("len of negh is 0 - 2")
-            continue
-
-        rewire(goal, new_neighbors, obstacles)
-        vertices.append(goal)
+        if new_neighbors:
+            rewire(goal, new_neighbors, obstacles)
+            vertices.append(goal)
 
     else:
         print("Still finding")
-        continue
-    
     
 if found:
         
-        steps = len(vertices) - 2
-        length = goal.cost
-        print("It took %d nodes to find the current path" %steps)
-        print("The path length is %.2f" %length)
-        #visualize_path(vertices)
+    steps = len(vertices) - 2
+    length = goal.cost
+    print("It took %d nodes to find the current path" %steps)
+    print("The path length is %.2f" %length)
+    # visualize_path(vertices)
 
-        nodes = []
-        for v in vertices:
-            nodes.append((v.row,v.col,v.tub))
-            #print("\n", v.row,v.col,v.tub,"\n")
+    nodes = []
+    for v in vertices:
+        nodes.append((v.row,v.col,v.tub))
+        #print("\n", v.row,v.col,v.tub,"\n")
             
 else:
     print("No path found")
@@ -394,11 +386,9 @@ ax.set_xlabel('X Label')
 ax.set_ylabel('Y Label')
 ax.set_zlabel('Z Label')
 
+
 # display the plot
-
-
-plt.savefig('/home/ankush/Desktop/plot2.png')
-
+plt.savefig('/home/ankush/Desktop/plot5.png')
 
 
 
