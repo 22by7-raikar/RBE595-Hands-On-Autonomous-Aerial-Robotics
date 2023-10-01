@@ -7,16 +7,17 @@ goal_bias = 0.1
 max_dist = 20
 goal_bias_star = 0.1
 max_dist_star = 10
-start = [5,12,13]
-goal = [7,24,25]
+start_coord = [5,12,13]
+goal_coord = [7,24,25]
 bxmin = 0
 bxmax = 10
 bymin = 0
 bymax = 10
 bzmin = 0
 bzmax = 10
-
-
+vertices = []
+vertices.append(start_coord)
+obstacle = (1,2,3)
 
 # Class for each tree node
 class Node:
@@ -26,8 +27,15 @@ class Node:
         self.parent = None  # parent node
         self.cost = 0.0  # cost
 
-start = Node(start[0], start[1])  # start node
-goal = Node(goal[0], goal[1])  # goal node
+start = Node(start_coord[0], start_coord[1], start_coord[2])  # start node
+goal = Node(goal_coord[0], goal_coord[1], goal_coord[2])  # goal node
+
+
+def outside_obstacle(point):
+    if obstacle[0] < point.row < obstacle[3] and obstacle[1] < point.col < obstacle[4] and obstacle[2] < point.col < obstacle[5]:
+        return False
+    
+    return True
 
 
 def dis(node1, node2):
@@ -49,12 +57,12 @@ def check_collision(obstacles, node1, node2):
     return:
         True if the new node is valid to be connected
     """
-    ### YOUR CODE HERE ###
     row_div = np.linspace(node1.row, node2.row)  # default number of divisions is 50
     col_div = np.linspace(node1.col, node2.col)
     tub_div = np.linspace(node1.tub, node2.tub)
 
     line = zip(row_div, col_div, tub_div)
+
     for point in line:
         if outside_obstacle(point):
             return False
@@ -68,9 +76,8 @@ def get_new_point(goal_bias):
     return:
         point - the new point
     """
-    ### YOUR CODE HERE ###
     t = random.random()  # Generate a (random)probability value in 0 to 1 range
-    new_point = Node(np.random.randint(-bxmin, bxmax), np.random.randint(bymin, bymax), np.random.randint(-bzmin, bzmax))
+    new_point = Node(random.uniform(-bxmin, bxmax), random.uniform(bymin, bymax), random.uniform(-bzmin, bzmax))
 
     return goal if t <= goal_bias else new_point
 
@@ -85,7 +92,6 @@ def get_nearest_node(point, vertices):
     return:
         the nearest node
     """
-    ### YOUR CODE HERE ###
     min_dist = math.inf
 
     for vertex in vertices:
@@ -127,6 +133,7 @@ def extend(node1, node2, max_dist):
     new_node = Node(x, y, z)
     new_node.parent = node1
     new_node.cost = node1.cost + dis(new_node, node1)
+
     return new_node
 
 def get_neighbors(vertices, new_node, neighbor_size):
@@ -137,7 +144,6 @@ def get_neighbors(vertices, new_node, neighbor_size):
     return:
         neighbors - a list of neighbors that are within the neighbor distance
     """
-    ### YOUR CODE HERE ###
     neighbors = []
     for vertex in vertices:
         if dis(vertex, new_node) < neighbor_size:
@@ -152,7 +158,6 @@ def rewire(new_node, neighbors):
     Rewire the new node if connecting to a new neighbor node will give the least cost.
     Rewire all the other neighbor nodes.
     """
-    ### YOUR CODE HERE ###
     for neighbor in neighbors:
         new_cost = new_node.cost + dis(neighbor, new_node)
         if new_cost < neighbor.cost and check_collision(new_node, neighbor):
@@ -168,11 +173,6 @@ def RRT_star(n_pts=1000, neighbor_size=20):
 
     In each step, extend a new node if possible, and rewire the node and its neighbors
     '''
-    # Remove previous result
-    # self.init_map()
-    print(" --------- RRT* Algorithm ---------- ")
-
-    ### YOUR CODE HERE ###
 
     # In each step,
     # get a new point,
@@ -187,10 +187,10 @@ def RRT_star(n_pts=1000, neighbor_size=20):
         near_vertex = get_nearest_node(new_point)
 
         # Find the node to extend in the direction of new node
-        extendable = True if (dis(near_vertex, new_point) <= max_dist_star) and (
-                new_point.row != self.goal.row) and (new_point.col != self.goal.col) else False
+        extendable = True if (dis(near_vertex, new_point) <= max_dist_star) and \
+            (new_point.row != goal.row) and (new_point.col != goal.col)  and (new_point.tub != goal.tub) else False
 
-        step_node = new_point if extendable else self.extend(near_vertex, new_point, max_dist=max_dist_star)
+        step_node = new_point if extendable else extend(near_vertex, new_point, max_dist=max_dist_star)
 
         if check_collision(near_vertex, step_node):
             neighbors = get_neighbors(step_node, neighbor_size)
@@ -210,26 +210,23 @@ def RRT_star(n_pts=1000, neighbor_size=20):
 
         # Check for neighbors of goal node and connect if there's a neighbor with lower cost than current goal cost
         # This method keeps exploring the tree, even if goal is reached to find a better path to the goal node
-        goal_neighbors = self.get_neighbors(self.goal, neighbor_size)
+        goal_neighbors = get_neighbors(goal, neighbor_size)
 
         for neighbor in goal_neighbors:
-            if self.check_collision(neighbor, self.goal) and (
-                    neighbor.cost + self.dis(neighbor, self.goal)) < self.goal.cost:
-                self.goal.parent = neighbor
-                self.goal.cost = neighbor.cost + self.dis(neighbor, self.goal)
-                self.found = True
+            if check_collision(neighbor, goal) and (
+                    neighbor.cost + dis(neighbor, goal)) < goal.cost:
+                goal.parent = neighbor
+                goal.cost = neighbor.cost + dis(neighbor, goal)
+                found = True
 
     # Output
-    if self.found:
-        self.vertices.append(self.goal)
-        steps = len(self.vertices) - 2
-        length = self.goal.cost
+    if found:
+        vertices.append(goal)
+        steps = len(vertices) - 2
+        length = goal.cost
         print("It took %d nodes to find the current path" % steps)
         print("The path length is %.2f" % length)
     else:
         print("No path found")
 
-    print(" -------------------------------- ")
-
-    # Draw result
-    self.draw_map()
+    RRT_star(1000, 20)
