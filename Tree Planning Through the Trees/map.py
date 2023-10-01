@@ -1,22 +1,8 @@
-import bpy
-import heapq
+import matplotlib.pyplot as plt
 import numpy as np
 import math
 import random
-import matplotlib.pyplot as plt
-
-class Node:
-    def __init__(self, row, col, tub):
-
-        self.row = row        # x - coordinate
-        self.col = col        # y - coordinate
-        self.tub = tub        # z - coordinate
-        self.cost = 0.0       # cost
-        self.distance = 0
-
-        #for using heapqueue
-    def __lt__(self, other):
-        return self.distance < other.distance
+import bpy
 
 map_file = "/home/ankush/Desktop/YourDirectoryID_p2a/src/sample_maps/map4.txt"
 
@@ -87,317 +73,235 @@ with open(map_file) as file:
 
 
 
-start_location = (5, 16, 3)
-create_sphere(start_location, 255, 0, 0)
-start = Node(start_location[0], start_location[1], start_location[2])
+start_coord = [5,16,3]
+create_sphere(start_coord, 255, 0, 0)
 
-goal_location = (24, 15, 5)
-create_sphere(goal_location, 0, 255, 0)
-goal = Node(goal_location[0], goal_location[1], goal_location[2])
-
-from mathutils import Vector
-
-def visualize_path(vertices, sphere_radius=0.1, cylinder_radius=0.05):
-    
-    # Deselect all objects in the scene
-    bpy.ops.object.select_all(action='DESELECT')
-
-    # Clear existing mesh objects
-    bpy.ops.object.select_by_type(type='MESH')
-    #bpy.ops.object.delete()
-
-    # creating spheres for nodes
-    spheres = []
-    for i, node in enumerate(vertices):
-        node_curr = (node.row,node.col,node.tub)
-        bpy.ops.mesh.primitive_uv_sphere_add(radius=sphere_radius, location=node_curr)
-        sphere = bpy.context.object
-        sphere.name = f"Node_{i}"
-        spheres.append(sphere)
-
-    # creating cylinders to connect adjacent nodes
-    for i in range(len(spheres) - 1):
-        node1 = spheres[i]
-        node2 = spheres[i + 1]
-        midpoint = ((node1.location.x + node2.location.x) / 2, 
-                    (node1.location.y + node2.location.y) / 2, 
-                    (node1.location.z + node2.location.z) / 2)
-        direction = node2.location - node1.location
-        distance = direction.length # .length calculates magnitude of vector
-
-        bpy.ops.mesh.primitive_cylinder_add(radius=cylinder_radius, depth=distance, location=midpoint)
-        cylinder = bpy.context.object
-
-        rot_quat = direction.to_track_quat('Z', 'Y')
-        cylinder.rotation_euler = rot_quat.to_euler()
-        cylinder.name = f"PathEdge_{i}"
-        
-    print("Visualization Completed")
-
-#nodes = [(5, 16, 3), (10, 26, 13)]
-
-#visualize_path(nodes)
-
-def dis(point1, point2):
-    return math.sqrt(((point1.row - point2.row)**2) + ((point1.col - point2.col)**2) + ((point1.tub - point2.tub)**2)) 
+goal_coord = (24, 15, 5)
+create_sphere(goal_coord, 0, 255, 0)
 
 
-def get_new_random_point(xmin, xmax, ymin, ymax, zmin, zmax, goal_bias):
-    
-    xnew = np.random.randint(xmin, xmax)
-    ynew = np.random.randint(ymin, ymax)
-    znew = np.random.randint(zmin, zmax)
+goal_bias = 0.1
+max_dist = 20
+goal_bias_star = 0.1
+max_dist_star = 10
+bxmin = 0
+bxmax = 10
+bymin = 0
+bymax = 10
+bzmin = 0
+bzmax = 10
 
-    if np.random.uniform(0,1) > goal_bias:
-        return (xnew, ynew, znew)
-    
-    else:
-        return goal_location
-        
+vertices = []
+vertices.append(start_coord)
 
-def get_nearest_node(vertices, point):
+# Class for each tree node
+class Node:
+    def __init__(self, row, col):
+        self.row = row  # coordinate
+        self.col = col  # coordinate
+        self.parent = None  # parent node
+        self.cost = 0.0  # cost
 
-    distance = []
-
-    for i in vertices:
-        #finding the distance 
-        d = dis(point, i) 
-        #pushing the node in the queue based on the distance
-        heapq.heappush(distance, (d,i))
-    
-    #popping the nearest node from the heap 
-    _, near_node = heapq.heappop(distance)
-
-    return near_node
+start = Node(start_coord[0], start_coord[1], start_coord[2])  # start node
+goal = Node(goal_coord[0], goal_coord[1], goal_coord[2])  # goal node
 
 
-def get_direction(point, nn):
-
-    diff_x = point.row - nn.row
-    diff_y = point.col - nn.col
-    diff_z = point.tub - nn.tub
-
-    diff_xy = math.sqrt((diff_x**2) + (diff_y**2))
-    ang1 = math.atan2(diff_z, diff_xy)
-    ang2 = math.atan2(diff_y, diff_x)
-    
-    return ang1,ang2
-
-
-def generate_directed_point(negh,ang1,ang2,step_size):
-
-    negh.row += step_size * math.cos(ang1) * math.cos(ang2) 
-    negh.col += step_size * math.cos(ang1) * math.sin(ang2) 
-    negh.tub += step_size * math.sin(ang1)
-    
-    return negh
-
-
-def check_valid(point):
-
-    if point.row >= bxmax:
-        point.row = bxmax-1
-
-    if point.row <= bxmin:
-        point.row = bxmin+1
-
-    if point.col >= bymax:
-        point.col = bymax-1
-
-    if point.col <= bymin:
-        point.col= bymin+1
-
-    if point.tub >= bzmax:
-        point.tub = bzmax-1
-    
-    if point.tub <= bzmin:
-        point.tub = bzmin+1
-
-    return point
-
-
-def check_point_obs(obstacles, point):
-
-    for j in obstacles:
-        if (j[0] < point[0] < j[3]) and (j[1] < point[1] < j[4]) and (j[2] < point[2] < j[5]):
-            return True
-        
-    return False
-
-
-def check_collision(obstacles, nn, new_node):
-    
-    check = 300
-    #finding out the step increment
-    incx = (nn.row - new_node.row)/check
-    incy = (nn.col - new_node.col)/check
-    incz = (nn.tub - new_node.tub)/check
-
-    #initializing the x and y points
-    xpt = nn.row
-    ypt = nn.col
-    zpt = nn.tub
-
-    for i in range(check):
-        #check if the point is an obstacle
-
-        if  check_point_obs(obstacles, (xpt, ypt, zpt)):
-            return False
-                
-        #incrementing x and y 
-        xpt = xpt+incx
-        ypt = ypt+incy
-        zpt = zpt+incz
+def outside_obstacles(point):
+    if obstacles[0] < point.row < obstacles[3] and obstacles[1] < point.col < obstacles[4] and obstacles[2] < point.col < obstacles[5]:
+        return False
     
     return True
 
 
-def get_neighbors(newpt, neighbor_size):
-    negh = [i for i in vertices if dis(i, newpt) < neighbor_size]        
-    return negh
+def dis(node1, node2):
+    """Calculate the euclidean distance between two nodes
+    arguments:
+        node1 - node 1
+        node2 - node 2
+    return:
+        euclidean distance between two nodes
+    """
+    return math.dist([node1.row, node1.col, node1.tub], [node2.row, node2.col, node2.tub])
 
+def check_collision(obstaclesss, node1, node2):
+    """Check if the path between two nodes collide with obstaclesss
+    arguments:
+        node1 - node 1
+        node2 - node 2
 
-def rewire(new_node, neighbors, obstacles):
+    return:
+        True if the new node is valid to be connected
+    """
+    row_div = np.linspace(node1.row, node2.row)  # default number of divisions is 50
+    col_div = np.linspace(node1.col, node2.col)
+    tub_div = np.linspace(node1.tub, node2.tub)
 
-    neighbor_heap = [(n.cost + dis(n, new_node), n) for n in neighbors]
-    heapq.heapify(neighbor_heap)
+    line = zip(row_div, col_div, tub_div)
 
-    # Finding the neighbor with the minimum cost
-    while True: 
+    for point in line:
+        if outside_obstacles(point):
+            return False
 
-        min_cost, min_cost_neighbor = heapq.heappop(neighbor_heap)
+    return True
 
-        #check for the collision of the node
-        if check_collision(obstacles, min_cost_neighbor, new_node):
+def get_new_point(goal_bias):
+    """Choose the goal or generate a random point
+    arguments:
+        goal_bias - the possibility of choosing the goal instead of a random point
+    return:
+        point - the new point
+    """
+    t = random.random()  # Generate a (random)probability value in 0 to 1 range
+    new_point = Node(random.uniform(-bxmin, bxmax), random.uniform(bymin, bymax), random.uniform(-bzmin, bzmax))
 
-            new_node.cost = min_cost
-            new_node.parent = min_cost_neighbor 
+    return goal if t <= goal_bias else new_point
 
-        break
+    """ALTERNATIVELY
+    return np.random.choice([self.goal, random_node], p=[goal_bias, 1 - goal_bias])
+    """
 
-    # Rewire the remaining neighbors
-    while neighbor_heap:
-        _, neighbor = heapq.heappop(neighbor_heap)
-        potential_cost = new_node.cost + dis(new_node, neighbor) 
-        
-        if neighbor.cost > potential_cost and check_collision(neighbor, new_node):
+def get_nearest_node(point, vertices):
+    """Find the nearest node in self.vertices with respect to the new point
+    arguments:
+        point - the new point
+    return:
+        the nearest node
+    """
+    min_dist = math.inf
 
+    for vertex in vertices:
+        if dis(vertex, point) < min_dist:
+            min_dist = dis(vertex, point)
+            nearest_node = vertex
+
+    return nearest_node
+
+def extend(node1, node2, max_dist):
+    dx = node2.row - node1.row
+    dy = node2.col - node1.col
+    dz = node2.tub - node1.tub
+
+    dist = dis(node1, node2)
+
+    factor = max_dist / dist
+    
+    x_step, y_step, z_step = dx * factor, dy * factor, dz * factor
+    
+    x = node1.row + x_step
+    y = node1.col + y_step
+    z = node1.tub + z_step
+
+    # Check if out of map
+    if x < bxmin:
+        x = bxmin
+    elif x > bxmax:
+        x = bxmax - 1
+    if y < bymin:
+        y = bymin
+    elif y > bymax:
+        y = bymax - 1
+    if z < bzmin:
+        z = bzmin
+    elif z > bzmax:
+        z = bzmax - 1
+
+    new_node = Node(x, y, z)
+    new_node.parent = node1
+    new_node.cost = node1.cost + dis(new_node, node1)
+
+    return new_node
+
+def get_neighbors(vertices, new_node, neighbor_size):
+    """Get the neighbors that are within the neighbor distance from the node
+    arguments:
+        new_node - a new node
+        neighbor_size - the neighbor distance
+    return:
+        neighbors - a list of neighbors that are within the neighbor distance
+    """
+    neighbors = []
+    for vertex in vertices:
+        if dis(vertex, new_node) < neighbor_size:
+            neighbors.append(vertex)
+    return neighbors
+
+def rewire(new_node, neighbors):
+    """Rewire the new node and all its neighbors
+    arguments:
+        new_node - the new node
+        neighbors - a list of neighbors that are within the neighbor distance from the node
+    Rewire the new node if connecting to a new neighbor node will give the least cost.
+    Rewire all the other neighbor nodes.
+    """
+    for neighbor in neighbors:
+        new_cost = new_node.cost + dis(neighbor, new_node)
+        if new_cost < neighbor.cost and check_collision(new_node, neighbor):
+            neighbor.cost = new_cost
             neighbor.parent = new_node
-            neighbor.cost = potential_cost
 
-    return neighbor_heap
+# def RRT_star():
+#     '''RRT* search function
+#     arguments:
+#         n_pts - number of points try to sample,
+#                 not the number of final sampled points
+#         neighbor_size - the neighbor distance
 
+#     In each step, extend a new node if possible, and rewire the node and its neighbors
+#     '''
 
-start_cost = 0
-ext_step = 15
-goal_bias = .075
-step_size = 1
-found = False
-neighbor_size = 10 #10
-max_dist = 1     #1
+    # In each step,
+    # get a new point,
+    # get its nearest node,
+    # extend the node and check collision to decide whether to add or drop,
+    # if added, rewire the node and its neighbors,
+    # and check if reach the neighbor region of the goal if the path is not found.
+n_pts=1000
+neighbor_size=20
 
-vertices = []
-vertices.append(start)
+for n in range(n_pts):
+    # Sample new point and get its nearest neighbor in the tree
+    new_point = get_new_point(goal_bias_star)
+    near_vertex = get_nearest_node(new_point)
 
-for i in range(1000): #1000
-    # print("Im on the ith iteration", i )
-    
-    new_point = get_new_random_point(bxmin, bxmax, bymin, bymax, bzmin, bzmax, goal_bias)
-    new_point = Node(new_point[0], new_point[1], new_point[2])
+    # Find the node to extend in the direction of new node
+    extendable = True if (dis(near_vertex, new_point) <= max_dist_star) and \
+        (new_point.row != goal.row) and (new_point.col != goal.col)  and (new_point.tub != goal.tub) else False
 
-    near_vertex = get_nearest_node(vertices, new_point)
-    
-    if dis(near_vertex,new_point)<= max_dist and new_point.row != goal.row and new_point.col != goal.col and new_point.tub != goal.tub:
-        newpoint = new_point
+    step_node = new_point if extendable else extend(near_vertex, new_point, max_dist=max_dist_star)
 
-    else:
-        dir1, dir2 = get_direction(new_point,near_vertex)
-        newpoint = generate_directed_point(near_vertex, dir1, dir2, step_size) 
-    
-    newpoint = check_valid(newpoint)
+    if check_collision(near_vertex, step_node):
+        neighbors = get_neighbors(step_node, neighbor_size)
+        min_node = near_vertex
+        min_cost = near_vertex.cost + dis(near_vertex, step_node)
 
-    #dissn = dis(newpoint, near_vertex)
+        for neighbor in neighbors:
+            if check_collision(neighbor, step_node) and (
+                    neighbor.cost + dis(neighbor, step_node)) < min_cost:
+                min_node = neighbor
+                min_cost = neighbor.cost + dis(neighbor, step_node)
 
-    if check_collision(obstacles, near_vertex, newpoint):
-        new_parent = near_vertex
-        new_cost = near_vertex.cost + dis(newpoint, near_vertex)
+        step_node.parent = min_node
+        step_node.cost = min_cost
+        vertices.append(step_node)
+        rewire(step_node, neighbors)
 
-        neighbors = get_neighbors(newpoint, neighbor_size)
+    # Check for neighbors of goal node and connect if there's a neighbor with lower cost than current goal cost
+    # This method keeps exploring the tree, even if goal is reached to find a better path to the goal node
+    goal_neighbors = get_neighbors(goal, neighbor_size)
 
-        if len(neighbors) == 0:
-            continue
+    for neighbor in goal_neighbors:
+        if check_collision(neighbor, goal) and (
+                neighbor.cost + dis(neighbor, goal)) < goal.cost:
+            goal.parent = neighbor
+            goal.cost = neighbor.cost + dis(neighbor, goal)
+            found = True
 
-        for n in neighbors:
-            if check_collision(obstacles,newpoint,n) and n.cost+dis(n,newpoint) < new_cost:
-                new_parent = n
-                new_cost = n.cost+dis(n,newpoint)
-        
-        newpoint.parent = new_parent
-        newpoint.cost = new_cost
-        
-        rewire(newpoint, neighbors, obstacles)
-        vertices.append(newpoint)
-        print("Im getting appended:",newpoint.row,newpoint.col,newpoint.tub)
-
-    else:
-        continue
-    
-    dgoal = dis(newpoint, goal)
-  
-    if dgoal < 10:
-        found = True
-        goal.parent = newpoint
-        disg = dis(near_vertex, newpoint)
-        goal.cost = newpoint.cost + disg
-        new_neighbors = get_neighbors(goal, neighbor_size)
-
-        if len(new_neighbors) == 0:
-            print("len of negh is 0 - 2")
-            continue
-
-        rewire(goal, new_neighbors, obstacles)
-        vertices.append(goal)
-
-    else:
-        print("Still finding")
-        continue
-    
-    
+# Output
 if found:
-        
-        steps = len(vertices) - 2
-        length = goal.cost
-        print("It took %d nodes to find the current path" %steps)
-        print("The path length is %.2f" %length)
-        visualize_path(vertices)
-
-        nodes = []
-        for v in vertices:
-            nodes.append((v.row,v.col,v.tub))
-            #print("\n", v.row,v.col,v.tub,"\n")
-            
+    vertices.append(goal)
+    steps = len(vertices) - 2
+    length = goal.cost
+    print("It took %d nodes to find the current path" % steps)
+    print("The path length is %.2f" % length)
 else:
     print("No path found")
-    
-
-fig = plt.figure()
-
-# create 3d axis on the figure
-ax = fig.add_subplot(111, projection='3d')
-
-x = [pt[0] for pt in nodes]
-y = [pt[1] for pt in nodes]
-z = [pt[2] for pt in nodes]
-
-# scatter plot
-ax.scatter(x, y, z)
-
-# set axis labels
-ax.set_xlabel('X Label')
-ax.set_ylabel('Y Label')
-ax.set_zlabel('Z Label')
-
-# display the plot
-
-
-plt.savefig('/home/ankush/Desktop/plot3.png')
