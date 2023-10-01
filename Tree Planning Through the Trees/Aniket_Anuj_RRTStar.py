@@ -99,6 +99,7 @@ class Node:
     def __init__(self, row, col):
         self.row = row  # coordinate
         self.col = col  # coordinate
+        self.tub = tub  # coordinate
         self.parent = None  # parent node
         self.cost = 0.0  # cost
 
