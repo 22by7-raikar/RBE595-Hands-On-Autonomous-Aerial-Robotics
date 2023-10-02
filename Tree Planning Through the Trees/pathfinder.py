@@ -184,20 +184,6 @@ for i in range(numNodes):
                 nodes.append({'coord': q_goal['coord'], 'cost': dist_3d(q_new_coord, q_goal['coord']) + q_new['cost'], 'parent': len(nodes) - 1})
             break
 
-# plt.show()
-
-# # Find path
-# q_end = q_goal
-# q_end['parent'] = np.argmin([dist_3d(node['coord'], q_goal['coord']) for node in nodes])
-# nodes.append(q_end)
-
-# while q_end['parent'] != -1:
-#     start = nodes[q_end['parent']]
-#     ax.plot(*zip(q_end['coord'], start['coord']), color='r', linewidth=4)
-#     plt.draw()
-#     plt.pause(0.001)
-#     q_end = start
-
 # Find path
 path_found = False
 path =[]
