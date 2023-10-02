@@ -7,7 +7,7 @@ x_max = 640
 y_max = 480
 z_max = 400
 EPS = 10
-numNodes = 2000
+numNodes = 500 #5000
 r = 50  # Radius to look for neighbors
 
 # Initialize
@@ -112,9 +112,11 @@ for i in range(numNodes):
 #     q_end = start
 
 # Find path
-q_end = nodes[np.argmin([dist_3d(node['coord'], q_goal['coord']) for node in nodes])]
+# Find path
+idx_q_end = np.argmin([dist_3d(node['coord'], q_goal['coord']) for node in nodes])
+q_end = nodes[idx_q_end]
 if no_collision(q_end['coord'], q_goal['coord'], obstacle):
-    nodes.append({'coord': q_goal['coord'], 'cost': 0, 'parent': nodes.index(q_end)})
+    nodes.append({'coord': q_goal['coord'], 'cost': 0, 'parent': idx_q_end})
     while q_end['parent'] != -1:
         start = nodes[q_end['parent']]
         ax.plot(*zip(q_end['coord'], start['coord']), color='r', linewidth=4)
