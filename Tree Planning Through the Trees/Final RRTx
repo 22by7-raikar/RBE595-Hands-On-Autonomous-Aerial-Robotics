@@ -13,7 +13,7 @@ from scipy.interpolate import CubicSpline
 map_file = "/home/anuj/Desktop/AerialRobotics/apairaikar_p2a/src/sample_maps/map4.txt"
 
 EPS = 1
-numNodes = 000 #5000
+numNodes =5000 #5000
 r = 50  # Radius to look for neighbors
 with open(map_file) as file:
 
@@ -59,7 +59,7 @@ for obstacle in obstacles:
             [(xmin, ymin, zmax), (xmin, ymax, zmax), (xmax, ymax, zmax), (xmax, ymin, zmax)]]
 
 
-    ax.add_collection3d(Poly3DCollection(verts, facecolors='y', linewidths=1, edgecolors='r', alpha=.25))
+    ax.add_collection3d(Poly3DCollection(verts, facecolors='y', linewidths=1, edgecolors='r'))
 
 ax.scatter(start_location[0], start_location[1], start_location[2], c='r', marker='o', s=100, label='Start')
 ax.scatter(goal_location[0], goal_location[1], goal_location[2], c='g', marker='o', s=100, label='Goal')
@@ -112,7 +112,7 @@ def rewire(new_node, nodes, radius, obstacles):
 for i in range(numNodes):
     print(i)
     q_rand = np.array([np.random.uniform(bxmin, bxmax), np.random.uniform(bymin, bymax), np.random.uniform(bzmin, bzmax)])
-    # ax.scatter(*q_rand, c='b', marker='x')
+    ax.scatter(*q_rand, c='b', marker='x')
 
     ndist = [dist_3d(node['coord'], q_rand) for node in nodes]
     idx = np.argmin(ndist)
@@ -149,20 +149,25 @@ for i in range(numNodes):
 
 # Find path
 path_found = False
+path =[]
 idx_q_end = np.argmin([dist_3d(node['coord'], q_goal['coord']) for node in nodes])
 q_end = nodes[idx_q_end]
 if no_collision(q_end['coord'], q_goal['coord'], obstacles):
     nodes.append({'coord': q_goal['coord'], 'cost': 0, 'parent': idx_q_end})
     while q_end['parent'] != -1:
+        path.append(q_end['coord'])
         start = nodes[q_end['parent']]
         ax.plot(*zip(q_end['coord'], start['coord']), color='r', linewidth=4)
         plt.draw()
         plt.pause(0.001)
         q_end = start
+    path.append(q_start['coord'])
     path_found = True  # Set the flag to True since a path is found
-
+path.reverse()
 # Check the flag after the loop
 if not path_found:
     print("No collision-free path found to goal")
 
 plt.show()
+
+print(path)
