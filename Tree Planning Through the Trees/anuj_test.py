@@ -117,7 +117,7 @@ with open(map_file) as file:
 
                 bxmin, bymin, bzmin, bxmax, bymax, bzmax = map(float, line_parts[1:])
                 transparency = 0.344  # Set the desired transparency value
-                create_boundary(xmin, ymin, zmin, xmax, ymax, zmax, transparency)
+                create_boundary(bxmin, bymin, bzmin, bxmax, bymax, bzmax, transparency)
 
 # Initialize
 q_start = {'coord': np.array([5, 16, 3]), 'cost': 0, 'parent': -1}
@@ -129,11 +129,11 @@ goal_location = [24,15,5]
 create_sphere(goal_location, 0, 255, 0)
 
 # Setup plot
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
-ax.set_xlim([bxmin, bxmax])
-ax.set_ylim([bymin, bymax])
-ax.set_zlim([bzmin, bzmax])
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+# ax.set_xlim([bxmin, bxmax])
+# ax.set_ylim([bymin, bymax])
+# ax.set_zlim([bzmin, bzmax])
 
 # Draw obstacle
 for obstacle in obstacles:
@@ -147,10 +147,10 @@ for obstacle in obstacles:
             [(xmin, ymin, zmax), (xmin, ymax, zmax), (xmax, ymax, zmax), (xmax, ymin, zmax)]]
 
 
-    ax.add_collection3d(Poly3DCollection(verts, facecolors='y', linewidths=1, edgecolors='r'))
+    # ax.add_collection3d(Poly3DCollection(verts, facecolors='y', linewidths=1, edgecolors='r'))
 
-ax.scatter(start_location[0], start_location[1], start_location[2], c='r', marker='o', s=100, label='Start')
-ax.scatter(goal_location[0], goal_location[1], goal_location[2], c='g', marker='o', s=100, label='Goal')
+# ax.scatter(start_location[0], start_location[1], start_location[2], c='r', marker='o', s=100, label='Start')
+# ax.scatter(goal_location[0], goal_location[1], goal_location[2], c='g', marker='o', s=100, label='Goal')
 
 
 def dist_3d(q1, q2):
@@ -200,7 +200,7 @@ def rewire(new_node, nodes, radius, obstacles):
 for i in range(numNodes):
     print(i)
     q_rand = np.array([np.random.uniform(bxmin, bxmax), np.random.uniform(bymin, bymax), np.random.uniform(bzmin, bzmax)])
-    ax.scatter(*q_rand, c='b', marker='x')
+    # ax.scatter(*q_rand, c='b', marker='x')
 
     ndist = [dist_3d(node['coord'], q_rand) for node in nodes]
     idx = np.argmin(ndist)
@@ -231,9 +231,9 @@ if no_collision(q_end['coord'], q_goal['coord'], obstacles):
     while q_end['parent'] != -1:
         path.append(q_end['coord'])
         start = nodes[q_end['parent']]
-        ax.plot(*zip(q_end['coord'], start['coord']), color='r', linewidth=4)
-        plt.draw()
-        plt.pause(0.001)
+        # ax.plot(*zip(q_end['coord'], start['coord']), color='r', linewidth=4)
+        # plt.draw()
+        # plt.pause(0.001)
         q_end = start
     path.append(q_start['coord'])
     path_found = True  # Set the flag to True since a path is found
@@ -242,7 +242,7 @@ path.reverse()
 if not path_found:
     print("No collision-free path found to goal")
 
-plt.show()
+# plt.show()
 
 print(path)
         
