@@ -17,7 +17,7 @@ def create_block(xmin, ymin, zmin, xmax, ymax, zmax, r, g, b, robot_width, robot
     bloat_width = robot_width/2
     bloat_length = robot_length/2
     bloat_height = robot_height/2
-    bpy.ops.mesh.primitive_cube_add(scale=((xmax-xmin)/2 + (2*bloat_width), (ymax-ymin)/2 + (2*bloat_length), (zmax-zmin)/2 + (2*bloat_height)))
+    bpy.ops.mesh.primitive_cube_add(scale=((xmax-xmin)/2 + (bloat_width), (ymax-ymin)/2 + (bloat_length), (zmax-zmin)/2 + (bloat_height)))
     block = bpy.context.active_object
     block.location.x = (xmax+xmin) / 2
     block.location.y = (ymax+ymin) / 2
