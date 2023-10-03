@@ -116,7 +116,6 @@ with open(map_file) as file:
             elif line_parts[0] == "boundary" and len(line_parts) == 7:
 
                 bxmin, bymin, bzmin, bxmax, bymax, bzmax = map(float, line_parts[1:])
-                xmin, ymin, zmin, xmax, ymax, zmax = map(float, line_parts[1:])
                 transparency = 0.344  # Set the desired transparency value
                 create_boundary(xmin, ymin, zmin, xmax, ymax, zmax, transparency)
 
