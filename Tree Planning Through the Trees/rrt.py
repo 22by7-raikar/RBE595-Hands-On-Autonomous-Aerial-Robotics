@@ -6,12 +6,12 @@ import math
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import CubicSpline
 import bpy
+import csv
 
-
-EPS = 0.5
-numNodes =10000 #5000
-r = 2  # Radius to look for neighbors
-map_file = "/home/hasithab/Desktop/rbe595_aerial_vehicles/sbachimanchi_p2a/src/sample_maps/map1.txt"
+EPS = 1
+numNodes =5000 #5000
+r = 50  # Radius to look for neighbors
+map_file = "/home/ankush/Desktop/YourDirectoryID_p2a/src/sample_maps/map1.txt"
 
 def create_block(xmin, ymin, zmin, xmax, ymax, zmax, r, g, b, robot_width, robot_length, robot_height):
     bloat_width = robot_width/2
@@ -179,7 +179,7 @@ def rewire(new_node, nodes, radius, obstacles):
                 
 
 for i in range(numNodes):
-    print(i)
+#    print(i)
     q_rand = np.array([np.random.uniform(bxmin, bxmax), np.random.uniform(bymin, bymax), np.random.uniform(bzmin, bzmax)])
     # ax.scatter(*q_rand, c='b', marker='x')
 
@@ -195,7 +195,7 @@ for i in range(numNodes):
         nodes.append(q_new)
         rewire(q_new, nodes, r, obstacles)
         distance_to_goal = dist_3d(q_new_coord, q_goal['coord'])
-        print("Distance to goal:", distance_to_goal)
+#        print("Distance to goal:", distance_to_goal)
         if distance_to_goal <= EPS:
             print("Path found to goal")
             if no_collision(q_new_coord, q_goal['coord'], obstacles):
@@ -228,3 +228,107 @@ if not path_found:
 print(path)
         
 create_nodes_spheres(path)
+
+def calculate_time_taken(path):
+        avgvel = 2
+        tf = 0 
+        for i in range(len(path)-1):
+            x0,y0,z0 = path[i][0],path[i][1],path[i][2]
+            xf,yf,zf = path[i+1][0],path[i+1][1],path[i+1][2]
+            tf = tf + math.ceil(dist_3d(path[i+1],path[i])/avgvel)
+        return tf
+time_taken = calculate_time_taken(path)
+
+
+def calc_path(path, avgvel,total_time):
+    
+    t0 = 0
+    i = 0 
+
+    x_d = []
+    y_d = []
+    z_d= []
+    x_d_dot = []
+    y_d_dot = []
+    z_d_dot = []
+    x_d_ddot = []
+    y_d_ddot = []
+    z_d_ddot = []
+    
+
+    
+    for t in range(int(time_taken)+1):        
+        
+            x0,y0,z0 = path[i][0],path[i][1],path[i][2]
+            xf,yf,zf = path[i+1][0],path[i+1][1],path[i+1][2]
+
+            if i == 0:
+                tf = dist_3d(path[i+1],path[i])/avgvel
+            else:
+                tf = tf + dist_3d(path[i+1],path[i])/avgvel
+
+            A = np.array([[1, t0, pow(t0,2), pow(t0,3), pow(t0,4), pow(t0,5)],
+                                    [0, 1, 2 * t0, 3 * pow(t0,2), 4 * pow(t0,3), 5 * pow(t0,4)],
+                                    [0, 0, 2, 6 * t0, 12 * pow(t0,2), 20 * pow(t0,3)],
+                                    [1, tf, pow(tf,2), pow(tf,3), pow(tf,4), pow(tf,5)],
+                                    [0, 1, 2 * tf, 3 * pow(tf,2), 4 * pow(tf,3), 5 * pow(tf,4)],
+                                    [0, 0, 2, 6 * tf, 12 * pow(tf,2), 20 * pow(tf,3)]]) 
+            
+            if i == 0:
+                B  = np.array([[x0,0,0,xf,2,0],
+                    [y0,0,0,yf,2,0],
+                    [z0,0,0,zf,2,0]])
+                
+            elif i == (len(path)-1):
+                B  = np.array([[x0,2,0,xf,0,0],
+                    [y0,2,0,yf,0,0],
+                    [z0,2,0,zf,0,0]])
+                
+            else:
+                B  = np.array([[x0,2,0,xf,2,0],
+                    [y0,2,0,yf,2,0],
+                    [z0,2,0,zf,2,0]])
+            
+            ax = np.linalg.solve(A,B[0])
+            ay = np.linalg.solve(A,B[1])
+            az = np.linalg.solve(A,B[2])
+
+            x_d.append(ax[0] + ax[1] * t + ax[2] * pow(t,2) + ax[3] * pow(t,3) + ax[4] * pow(t,4) + ax[5] * pow(t,5))
+            y_d.append(ay[0] + ay[1] * t + ay[2] * pow(t,2) + ay[3] * pow(t,3) + ay[4] * pow(t,4) + ay[5] * pow(t,5))
+            z_d.append(az[0] + az[1] * t + az[2] * pow(t,2) + az[3] * pow(t,3) + az[4] * pow(t,4) + az[5] * pow(t,5))
+            
+            # Velocity
+            x_d_dot.append(ax[1] + 2 * ax[2]*t + 3 * ax[3] * pow(t,2) + 4*ax[4] * pow(t,3) + 5 * ax[5] * pow(t,4))
+            y_d_dot.append(ay[1] + 2 * ay[2]*t + 3 * ay[3] * pow(t,2) + 4*ay[4] * pow(t,3) + 5 * ay[5] * pow(t,4))
+            z_d_dot.append(az[1] + 2 * az[2]*t + 3 * az[3] * pow(t,2) + 4*az[4] * pow(t,3) + 5 * az[5] * pow(t,4))
+            
+            # Acceleration
+            x_d_ddot.append(2 * ax[2] + 6 * ax[3] * t + 12 * ax[4] * pow(t,2) + 20 * ax[5] * pow(t,3))
+            y_d_ddot.append(2 * ay[2] + 6 * ay[3] * t + 12 * ay[4] * pow(t,2) + 20 * ay[5] * pow(t,3))
+            z_d_ddot.append(2 * az[2] + 6 * az[3] * t + 12 * az[4] * pow(t,2) + 20 * az[5] * pow(t,3))
+
+            if t == tf:
+                i = i+1
+                t0 = tf
+            # writer.writerow([x_d, y_d, z_d, x_d_dot, y_d_dot, z_d_dot, x_d_ddot, y_d_ddot, z_d_ddot])
+            # print(x_d,y_d,z_d,x_d_dot,y_d_dot,z_d_dot,x_d_ddot,y_d_ddot,z_d_ddot)
+
+    with open("/home/ankush/Desktop/your_file.csv", mode="w", newline="") as file:
+        writer = csv.writer(file)
+
+        # Writing each list as a row
+        writer.writerow(x_d)
+        writer.writerow(y_d)
+        writer.writerow(z_d)
+        writer.writerow(x_d_dot)
+        writer.writerow(y_d_dot)
+        writer.writerow(z_d_dot)
+        writer.writerow(x_d_ddot)
+        writer.writerow(y_d_ddot)
+        writer.writerow(z_d_ddot)
+
+
+
+
+
+calc_path(path, 2, time_taken)
