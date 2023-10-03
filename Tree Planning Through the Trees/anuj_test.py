@@ -27,7 +27,7 @@ def create_block(xmin, ymin, zmin, xmax, ymax, zmax, r, g, b):
 
 def create_sphere(location, r, g, b):
 
-    bpy.ops.mesh.primitive_uv_sphere_add(radius=0.1, location=location)
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=1.0, location=location)
     sphere = bpy.context.active_object
     material = bpy.data.materials.new(name="SphereMaterial")
     sphere.data.materials.append(material)
@@ -116,8 +116,9 @@ with open(map_file) as file:
             elif line_parts[0] == "boundary" and len(line_parts) == 7:
 
                 bxmin, bymin, bzmin, bxmax, bymax, bzmax = map(float, line_parts[1:])
+                xmin, ymin, zmin, xmax, ymax, zmax = map(float, line_parts[1:])
                 transparency = 0.344  # Set the desired transparency value
-                create_boundary(bxmin, bymin, bzmin, bxmax, bymax, bzmax, transparency)
+                create_boundary(xmin, ymin, zmin, xmax, ymax, zmax, transparency)
 
 # Initialize
 q_start = {'coord': np.array([5, 16, 3]), 'cost': 0, 'parent': -1}
@@ -147,7 +148,7 @@ for obstacle in obstacles:
             [(xmin, ymin, zmax), (xmin, ymax, zmax), (xmax, ymax, zmax), (xmax, ymin, zmax)]]
 
 
-    # ax.add_collection3d(Poly3DCollection(verts, facecolors='y', linewidths=1, edgecolors='r'))
+#     ax.add_collection3d(Poly3DCollection(verts, facecolors='y', linewidths=1, edgecolors='r'))
 
 # ax.scatter(start_location[0], start_location[1], start_location[2], c='r', marker='o', s=100, label='Start')
 # ax.scatter(goal_location[0], goal_location[1], goal_location[2], c='g', marker='o', s=100, label='Goal')
@@ -247,6 +248,3 @@ if not path_found:
 print(path)
         
 create_nodes_spheres(path)
-
-
-
