@@ -102,7 +102,6 @@ for i in range(numNodes):
 # Find path
 idx_q_end = np.argmin([dist_3d(node['coord'], q_goal['coord']) for node in nodes])
 q_end = nodes[idx_q_end]
-
 if no_collision(q_end['coord'], q_goal['coord'], obstacle):
     nodes.append({'coord': q_goal['coord'], 'cost': 0, 'parent': idx_q_end})
     while q_end['parent'] != -1:
