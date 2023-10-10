@@ -11,6 +11,7 @@ import csv
 d_goal = 0.5
 numNodes = 10000 
 r = 0.2
+
 map_file = "/home/anuj/Desktop/sbachimanchi_p2a/TestSetP2b/maps/map1.txt"
 
 robot_width = 0.5
