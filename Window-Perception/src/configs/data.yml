@@ -1,0 +1,6 @@
+path: '~/Desktop/AerialRobotics/apairaikar_p3a/Dataset/'
+train: '~/Desktop/AerialRobotics/apairaikar_p3a/Dataset/Train/Images'
+# val: /path/to/val/images Dont have them yet
+
+nc: 4  # Number of classes (keypoints)
+names: ['top_left', 'top_right', 'bottom_left', 'bottom_right']  # Class names
