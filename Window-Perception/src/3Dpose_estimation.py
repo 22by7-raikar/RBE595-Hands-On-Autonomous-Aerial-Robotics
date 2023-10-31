@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import os
 
 # Camera calibration matrix K
 K = np.array([[1378.6998, 0, 624.4608],
@@ -12,13 +13,14 @@ window_width = 838  # Width of the window in millimeters
 window_height = 838  # Height of the window in millimeters
 
 def mark_polygon_corners(input_image_path, output_image_path):
+    print(f"Input Image Path: {output_image_path}")  # Add this line for debugging
     img = cv2.imread(input_image_path)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     edges = cv2.Canny(gray, 50, 150)     # Find edges using Canny edge detection
 
     # Find contours
-    contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     # Assuming the largest contour is the outer polygon and the second largest is the inner one
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
@@ -69,19 +71,23 @@ def mark_polygon_corners(input_image_path, output_image_path):
     return image_points, world_coordinates  # Returning both image points and world coordinates
 
 if __name__ == "__main__":
-    input_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/window_masks/1_OUT.png"
-    output_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/inner_corners/1.png"
-    corners, world_coords = mark_polygon_corners(input_path, output_path)
+    input_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/window_masks/" #1_OUT.png"
+    output_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/inner_corners/" #1.png"
+    num = 1
+    mask_list = os.listdir(input_path)
+    for input_mask in mask_list:
+        corners, world_coords = mark_polygon_corners(os.path.join(input_path, input_mask), os.path.join(output_path, input_mask))
 
-    for idx, corner in enumerate(corners, start=1):
-        print(f"Corner {idx}: {corner}")
+        for idx, corner in enumerate(corners, start=1):
+            print(f"Corner {idx}: {corner}")
 
-    for idx, world_coord in enumerate(world_coords, start=1):
-        print(f"3D World Coordinates for Corner {idx}: {world_coord}")
+        for idx, world_coord in enumerate(world_coords, start=1):
+            print(f"3D World Coordinates for Corner {idx}: {world_coord}")
 
     # For debugging, display the marked corners in an OpenCV window
-    cv2.imshow("Marked Corners", cv2.imread(output_path))
-    cv2.waitKey(0)
+        cv2.imshow(f"Marked Corners {num}", cv2.imread(os.path.join(output_path, input_mask)))
+        num+=1
+        cv2.waitKey(2000)
 
-    # Close the OpenCV window properly
-    cv2.destroyAllWindows()
+        # # Close the OpenCV window properly
+        # cv2.destroyAllWindows()
