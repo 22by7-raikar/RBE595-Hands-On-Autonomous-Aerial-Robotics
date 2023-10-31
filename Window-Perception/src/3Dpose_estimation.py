@@ -1,8 +1,7 @@
 import cv2
 import numpy as np
 
-# Load your camera calibration matrix K
-# You can replace the values below with your actual camera parameters
+# Camera calibration matrix K
 K = np.array([[1378.6998, 0, 624.4608],
               [0, 1378.2931, 362.5225],
               [0, 0, 1]]
@@ -13,19 +12,17 @@ window_width = 838  # Width of the window in millimeters
 window_height = 838  # Height of the window in millimeters
 
 def mark_polygon_corners(input_image_path, output_image_path):
-    # Read the image
     img = cv2.imread(input_image_path)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-    # Find edges using Canny edge detection
-    edges = cv2.Canny(gray, 50, 150)
+    edges = cv2.Canny(gray, 50, 150)     # Find edges using Canny edge detection
 
     # Find contours
     contours, _ = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     # Assuming the largest contour is the outer polygon and the second largest is the inner one
     contours = sorted(contours, key=cv2.contourArea, reverse=True)
-    inner_contour = contours[1]
+    inner_contour = contours[2]
 
     # Approximate the contour to get the corners
     epsilon = 0.02 * cv2.arcLength(inner_contour, True)
@@ -72,8 +69,8 @@ def mark_polygon_corners(input_image_path, output_image_path):
     return image_points, world_coordinates  # Returning both image points and world coordinates
 
 if __name__ == "__main__":
-    input_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/window_masks/abc.png"
-    output_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/inner_corners/xyz.png"
+    input_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/window_masks/1_OUT.png"
+    output_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/inner_corners/1.png"
     corners, world_coords = mark_polygon_corners(input_path, output_path)
 
     for idx, corner in enumerate(corners, start=1):
