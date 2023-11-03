@@ -3,8 +3,8 @@ import json
 from PIL import Image, ImageDraw
 
 # Load the JSON file with image and vertex coordinates
-json_file_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/datasets/mydataset/annotations/image_vertex_mapping_7.json"
-output_folder =  "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/datasets/mydataset/window_masks/train/7/"
+json_file_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/datasets/mydataset/annotations/image_vertex_mapping_1.json"
+output_folder =  "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/datasets/mydataset/window_masks/train/1/"
 
 with open(json_file_path, 'r') as json_file:
     image_vertex_mapping = json.load(json_file)
