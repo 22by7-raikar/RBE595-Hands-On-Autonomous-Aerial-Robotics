@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
 # Constants
 class Node:
@@ -19,6 +19,7 @@ class RRTstar:
         self.obstacles = obstacles
         self.bs = boundary_start
         self.be = boundary_end
+        self.path = []
 
     def dist_3d(self, q1, q2):
         return np.linalg.norm(q1 - q2)
@@ -92,16 +93,43 @@ class RRTstar:
 
             while q_end.parent is not None:
                 start = self.nodes[q_end.parent]
-                plt.plot([q_end.coord[0], start.coord[0]], [q_end.coord[1], start.coord[1]], color='r', linewidth=4)
+                self.path.append(q_end.coord)
+                # plt.plot([q_end.coord[0], start.coord[0]], [q_end.coord[1], start.coord[1]], color='r', linewidth=4)
                 q_end = start
+            
+            self.path.append(self.start.coord)
+            self.path = self.path[::-1]
+            
+            return self.path    
 
         else:
             print("No collision-free path found to the goal")
 
-        plt.show()
+            return []
 
 # Example usage
 if __name__ == '__main__':
     obstacles = [(5, 5, 1, 5, 5, 5)]  # Example obstacle, format: (x0, y0, z0, dx, dy, dz)
     rrt_star = RRTstar(map_array = None, start=(0, 0, 0), goal=(40, 30, 3), boundary_start = (0, 0, 0), boundary_end = (45, 36, 6), obstacles=obstacles)
     rrt_star.RRT()
+
+# Import the RRTstar class from your rrt_star script
+# from rrt_star import RRTstar
+
+# def calculate_path():
+#     obstacles = [(5, 5, 1, 5, 5, 5)]  # Example obstacle, format: (x0, y0, z0, dx, dy, dz)
+    
+#     # Define your start and goal coordinates
+#     start = (0, 0, 0)
+#     goal = (40, 30, 3)
+    
+#     # Create an instance of the RRTstar class with the appropriate parameters
+#     rrt_star = RRTstar(map_array=None, start=start, goal=goal, boundary_start=(0, 0, 0), boundary_end=(45, 36, 6), obstacles=obstacles)
+
+#     # Call the RRT method to get the path
+#     path = rrt_star.RRT()
+
+#     if path:
+#         print("Found a path:", path)
+#     else:
+#         print("No collision-free path found to the goal")
