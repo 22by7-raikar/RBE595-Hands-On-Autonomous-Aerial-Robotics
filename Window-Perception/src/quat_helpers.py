@@ -111,10 +111,11 @@ def quat2euler(q):
     else:
         pitch = math.asin(sin_pitch)
 
+    pitch = math.degrees(pitch)
     # Calculate yaw (rotation around the z-axis)
     sin_yaw_cosp = 2.0 * (w * z + x * y)
     cos_yaw_cosp = 1.0 - 2.0 * (y * y + z * z)
-    yaw = math.atan2(sin_yaw_cosp, cos_yaw_cosp)
+    yaw = math.degrees(math.atan2(sin_yaw_cosp, cos_yaw_cosp))
 
     # Calculate roll (rotation around the y-axis)
     sin_roll = 2.0 * (w * x - y * z)
@@ -124,6 +125,7 @@ def quat2euler(q):
     else:
         roll = math.asin(sin_roll)
 
+    roll = math.degrees(roll)
     return [roll, pitch, yaw]
     # phi = math.atan2(2*(q[0]*q[1]+q[2]*q[3]), 1 - 2*(q[1]**2 + q[2]**2))
     # theta = math.asin(2*(q[0]*q[2] - q[3]*q[1]))
