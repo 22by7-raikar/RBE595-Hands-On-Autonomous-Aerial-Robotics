@@ -10,13 +10,15 @@ class Node:
 
 # Initialize
 class RRTstar:
-    def __init__(self, map_array, start, goal, obstacles=None):
+    def __init__(self, map_array, start, goal, boundary_start, boundary_end, obstacles=None)):
         self.start = Node(coord=np.array(start))
         self.goal = Node(coord=np.array(goal))
         self.vertices = []  # list of nodes
         self.found = False  # found flag
         self.nodes = [self.start]
         self.obstacles = obstacles
+        self.bs = boundary_start
+        self.be = boundary_end
 
     def dist_3d(self, q1, q2):
         return np.linalg.norm(q1 - q2)
@@ -64,8 +66,8 @@ class RRTstar:
         r = 50  # Radius to look for neighbors
 
         for i in range(numNodes):
-
-            q_rand = np.array([np.random.rand() * 45, np.random.rand() * 36, np.random.rand() * 6])
+            q_rand = np.array([np.random.uniform(self.bs[0], self.be[0]), np.random.uniform(self.bs[1], self.be[1]), np.random.uniform(self.bs[2], self.be[2])])
+            # q_rand = np.array([np.random.rand() * self.be[0], np.random.rand() * self.be[1], np.random.rand() * self.be[2]])
             
             ndist = [self.dist_3d(node.coord, q_rand) for node in self.nodes]
             idx = np.argmin(ndist)
@@ -101,5 +103,5 @@ class RRTstar:
 # Example usage
 if __name__ == '__main__':
     obstacles = [(5, 5, 1, 5, 5, 5)]  # Example obstacle, format: (x0, y0, z0, dx, dy, dz)
-    rrt_star = RRTstar(map_array = None, start=(0, 0, 0), goal=(40, 30, 3), obstacles=obstacles)
+    rrt_star = RRTstar(map_array = None, start=(0, 0, 0), goal=(40, 30, 3), boundary_start = (0, 0, 0), boundary_end = (45, 36, 6), obstacles=obstacles)
     rrt_star.RRT()
