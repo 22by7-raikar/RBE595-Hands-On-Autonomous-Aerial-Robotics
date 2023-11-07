@@ -328,7 +328,7 @@ class RRTstar:
                 potential_cost = new_node.cost + self.dist_3d(new_node.coord, node.coord)
         
                 if potential_cost < node.cost and self.no_collision(new_node.coord, node.coord, obstacle):
-                    
+
                     node.parent = new_idx
                     node.cost = potential_cost
 
@@ -438,10 +438,11 @@ class RRTstar:
         timestamp = int(time.time())
         csv_file_name = f"trajectory_{timestamp}.csv"
         csv_file_path = os.path.join("/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/trajectories/", csv_file_name)
-
+       
         with open(csv_file_path, mode="w", newline="") as file:
 
             writer = csv.writer(file)
+            writer.writerow([])
             writer.writerow(x_d)
             writer.writerow(y_d)
             writer.writerow(z_d)
@@ -477,6 +478,7 @@ class RRTstar:
                 self.rewire(q_new, r, self.obstacles)
 
                 if self.dist_3d(q_new.coord, self.goal.coord) < EPS:
+                    
                     self.found = True
                     break
 
@@ -510,7 +512,7 @@ class RRTstar:
 
 # Example usage
 if __name__ == '__main__':
-    # Example usage:
+    # Example usage:                        
     obstacles = [(5, 5, 1, 5, 5, 5)]  # Example obstacle, format: (x0, y0, z0, dx, dy, dz)
     rrt_star = RRTstar(start=(0, 0, 0), goal=(40, 30, 3), boundary=(0, 0, 0, 45, 36, 6), obstacles=obstacles)
     rrt_star.RRT()
