@@ -1,23 +1,22 @@
 import cv2
 import numpy as np
-import os
-
-# Camera calibration matrix K
-K = np.array([[1378.6998, 0, 624.4608],
-              [0, 1378.2931, 362.5225],
-              [0, 0, 1]]
-)
+import matplotlib.pyplot as plt
 
 # Known real-world dimensions of the window
-window_width = 838  # Width of the window in millimeters
-window_height = 838  # Height of the window in millimeters
+width = 83.3 # Replace with actual width
+height = 83.3 # Replace with actual height
+K = np.array([[1378.6998, 0, 624.4608],
+                [0, 1378.2931, 362.5225],
+                [0, 0, 1]])
 
-def mark_polygon_corners(input_image_path, output_image_path):
-    print(f"Input Image Path: {output_image_path}")  # Add this line for debugging
-    img = cv2.imread(input_image_path)
+def get_pose(path):
+    img = cv2.imread(path)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     edges = cv2.Canny(gray, 50, 150)     # Find edges using Canny edge detection
+
+    # No lens distortion
+    distCoeffs = np.zeros((4, 1))
 
     # Find contours
     contours, hierarchy = cv2.findContours(edges, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -30,64 +29,33 @@ def mark_polygon_corners(input_image_path, output_image_path):
     epsilon = 0.02 * cv2.arcLength(inner_contour, True)
     corners = cv2.approxPolyDP(inner_contour, epsilon, True)
 
-    # Draw corners on the image
-    for point in corners:
-        cv2.circle(img, (point[0][0], point[0][1]), 5, (0, 0, 255), -1)  # Draw a red circle for each corner
-
-    # Save the image with marked corners
-    cv2.imwrite(output_image_path, img)
-
     # Prepare your 2D image points
     image_points = np.array([corner[0].tolist() for corner in corners], dtype=np.float32)
+    centroid = np.mean(image_points, axis=0)
 
-    # List to store the 3D world coordinates of the corners
-    world_coordinates = []
+    # Sort the points based on their distance to the centroid
+    sorted_image_points = sorted(image_points, key=lambda p: np.arctan2(p[1] - centroid[1], p[0] - centroid[0]))
 
-    # Triangulation for each corner
-    for image_point in image_points:
-        # Perform triangulation for each corner
-        A = np.linalg.inv(K).dot(np.array([image_point[0], image_point[1], 1]))
-        x_world = A[0] * window_width
-        y_world = A[1] * window_height
-        z_world = A[2]
+    # Define the 3D points of the window in world coordinates
+    objectPoints = np.array([
+        [0, 0, 0],        # Bottom-left
+        [width, 0, 0],    # Bottom-right
+        [width, height, 0],# Top-right
+        [0, height, 0]    # Top-left
+    ], dtype="double")
 
-        # Append the 3D world coordinates of the corner to the list
-        world_coordinates.append([x_world, y_world, z_world])
+    # Solve the PnP problem
+    success, rotation_vector, translation_vector = cv2.solvePnP(objectPoints, sorted_image_points, K, distCoeffs)
 
-    # Use solvePnP to estimate the pose
-    success, rotation_vector, translation_vector = cv2.solvePnP(np.array(world_coordinates), image_points, K, None)
+    # Convert the rotation vector into a rotation matrix
+    rotation_matrix, _ = cv2.Rodrigues(rotation_vector)
 
-    if success:
-        # `rotation_vector` contains the rotation parameters (R)
-        print("Rotation Vector (R):")
-        print(rotation_vector)
+    # Transform the object points to the camera coordinate system
+    object_points_camera = np.dot(rotation_matrix, objectPoints.T).T + translation_vector.T
 
-        # `translation_vector` contains the translation parameters (T)
-        print("Translation Vector (T):")
-        print(translation_vector)
-    else:
-        print("solvePnP failed to estimate the pose.")
+    # Extracting the x, y, and z coordinates
+    x_vals = object_points_camera[:, 0]
+    y_vals = object_points_camera[:, 1]
+    z_vals = object_points_camera[:, 2]
 
-    return image_points, world_coordinates  # Returning both image points and world coordinates
-
-if __name__ == "__main__":
-    input_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/window_masks/" #1_OUT.png"
-    output_path = "/home/anuj/Desktop/AerialRobotics/apairaikar_p3a/UNet-Pytorch-Customdataset-main/outputs/inner_corners/" #1.png"
-    num = 1
-    mask_list = os.listdir(input_path)
-    for input_mask in mask_list:
-        corners, world_coords = mark_polygon_corners(os.path.join(input_path, input_mask), os.path.join(output_path, input_mask))
-
-        for idx, corner in enumerate(corners, start=1):
-            print(f"Corner {idx}: {corner}")
-
-        for idx, world_coord in enumerate(world_coords, start=1):
-            print(f"3D World Coordinates for Corner {idx}: {world_coord}")
-
-    # For debugging, display the marked corners in an OpenCV window
-        cv2.imshow(f"Marked Corners {num}", cv2.imread(os.path.join(output_path, input_mask)))
-        num+=1
-        cv2.waitKey(2000)
-
-        # # Close the OpenCV window properly
-        # cv2.destroyAllWindows()
+    return object_points_camera
