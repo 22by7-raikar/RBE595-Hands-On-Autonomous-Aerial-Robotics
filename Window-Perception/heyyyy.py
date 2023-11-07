@@ -11,10 +11,13 @@ def follow_path(path,R, current_loc):
     init_x = 0
     init_y  = 0
     init_z = 0
+    r_d = np.array([[0,-1,0],
+                    [1,0,0],
+                    [0,0,1]])
     for column_index in range(len(df.columns)):
         column_data = df.iloc[:, column_index]
         #print(column_data.iloc[0],column_data.iloc[1],column_data.iloc[2])
-        
+
         #Sending incremental co-odinates to the drone    
         x_loc = column_data.iloc[0] -init_x
         y_loc = column_data.iloc[1] -init_y
@@ -30,13 +33,19 @@ def follow_path(path,R, current_loc):
 
         else:
             #print(x_loc,y_loc,z_loc)
-            tello.go_xyz_speed(-int(x_loc*100),-int(y_loc*100),int(z_loc*100), 25)
+            go_to_i  = (np.array([x_loc,y_loc,z_loc])).T
+            go_to = r_d*go_to_i 
+            tello.go_xyz_speed(-int(go_to[0]*100),-int(go_to[1]*100),int(go_to[2]*100), 25)
             init_x = column_data.iloc[0]
             init_y = column_data.iloc[1]
             init_z = column_data.iloc[2]
-            current_loc[0] += inc_coords_wf[0]
-            current_loc[1] += inc_coords_wf[1]
-            current_loc[2] += inc_coords_wf[2]
+            current_loc[0] += inc_coords_wf[0]*100
+            current_loc[1] += inc_coords_wf[1]*100
+            current_loc[2] += inc_coords_wf[2]*100
+
+        window_rotation = False
+
+    return curr_loc
 
 #read the map and store the approx. window coordinates
 map_file = cfg['env']['map_file']
@@ -69,29 +78,32 @@ init_z = 0
 real_x = 0
 real_y = 0 
 real_z = 0
+curr_loc = [0,0,0]
 window_rotation =  False
+go_through = False
 for i in range(len(window_locs)):
 
-        curr_loc = [real_x,real_y,real_z]
+        
         approx_window_location = [window_locs[i][0] - 25, window_locs[i][1] - 25, window_locs[i][2]]
         path = RRTstar(curr_loc, approx_window_location,bxmin, bymin, bzmin, bxmax, bymax, bzmax)
         if window_rotation == False:
          R = np.eye(3)
-        follow_path(path,R,curr_loc)
+        curr_loc = follow_path(path,R,curr_loc)
         #change the orientation of the drone to that of the window
         window_orient_approx = quat2euler([qw,qx,qy,qz])
         theta = window_orient_approx[2]
         #if the window has certain rotation, find the Rotation matrix of the drone coorinate frame
         if theta != 0 :
-            window_rotation == True
+            window_rotation = True
             R = np.array([[cos(theta), sin(theta),0],
                           [-1*sin(theta),cos(theta),0],
                           [0,0,1]])    
         if theta > 0:
             tello.rotate_counter_clockwise(theta)
+            go_through = True
         elif theta < 0:
-            window_rotation == True
             tello.rotate_clockwise(theta)
+            go_through = True
         
         tello.streamon()
         time.sleep(2)
@@ -105,9 +117,15 @@ for i in range(len(window_locs)):
         # Run traditional CV to get the 3 D coords of the window corners
         # store the 3D coordinates
         ###############################################################################################
+        if go_through == True:
+            cam_goal_coords[1] = cam_goal_coords[1] + 10 
+            goal_coords = [cam_goal_coords[0],cam_goal_coords[2],-cam_goal_coords[1]]
 
-        path = RRTstar([0,0,0],[goal_coords])
+        path = RRTstar([0,0,0],[goal_coords],bymin, bzmin, bxmax, bymax, bzmax)
+        curr_loc = follow_path(path,R,goal)
 
+
+tello.land()
 
 
 
