@@ -15,27 +15,23 @@ def process_frame(frame):
     mask_blue_window = cv2.inRange(window_hsv, light_blue, dark_blue)
 
     combined_mask = cv2.bitwise_or(mask_pink_hand, mask_blue_window)
-    result = cv2.bitwise_and(window_rgb, window_rgb, mask=combined_mask)
+    # result = cv2.bitwise_and(window_rgb, window_rgb, mask=combined_mask)
 
-    return result
+    # return result
 
-    # Find contours for the pink hand
-    contours_pink_hand, _ = cv2.findContours(mask_pink_hand, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Apply Canny edge detection
+    edges = cv2.Canny(combined_mask, 30, 100)
 
-    # Find contours for the blue window
-    contours_blue_window, _ = cv2.findContours(mask_blue_window, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    # Find contours on the edges
+    contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
     # Create an empty frame for drawing contours
     frame_with_contours = window_rgb.copy()
 
-    # Draw contours for the blue window on the frame with contours
-    cv2.drawContours(frame_with_contours, contours_blue_window, -1, (0, 0, 0), thickness=1)
-
-    # Draw contours for the pink hand on the frame with contours
-    cv2.drawContours(frame_with_contours, contours_pink_hand, -1, (0, 255, 0), thickness=1)
+    # Draw contours on the frame with contours
+    cv2.drawContours(frame_with_contours, contours, -1, (0, 255, 0), thickness=1)
 
     return frame_with_contours
-
 
 
 # Input and output file paths
